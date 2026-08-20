@@ -1,4 +1,4 @@
-### 🔒 WTMP – Who Touched My Phone (AI-Powered Security)
+### 🔒 WTMP – Who Touched My Phone (AI-Powered)
 ![Status](https://img.shields.io/badge/Code-181717?style=for-the-badge&logo=github&logoColor=white) ![AI](https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white) ![UI](https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white) ![DI](https://img.shields.io/badge/Dagger_Hilt-2C3E50?style=for-the-badge&logo=android&logoColor=white) ![Storage](https://img.shields.io/badge/Room_Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 
 > High-performance Android security engine designed to detect unauthorized access attempts, capture intruder snapshots via background CameraX services, and generate AI-driven security reports.
