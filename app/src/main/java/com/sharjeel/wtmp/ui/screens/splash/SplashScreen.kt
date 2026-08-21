@@ -1,35 +1,16 @@
 package com.sharjeel.wtmp.ui.screens.splash
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -44,8 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharjeel.wtmp.R
 import com.sharjeel.wtmp.ui.theme.WTMPTheme
-import com.sharjeel.wtmp.ui.theme.WtmpPrimary
-import com.sharjeel.wtmp.ui.theme.WtmpPurpleBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -54,6 +33,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
     val currentOnNavigate by rememberUpdatedState(onNavigationToOnboarding)
     val isDark = isSystemInDarkTheme()
+    val colorScheme = MaterialTheme.colorScheme
 
     // Screen Exit Animation States
     val screenAlpha = remember { Animatable(0f) }
@@ -69,12 +49,12 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
     val subtitleAlpha = remember { Animatable(0f) }
     val subtitleOffsetY = remember { Animatable(15f) }
 
-    // Colors Setup
-    val backgroundCol = if (isDark) Color(0xFF101216) else WtmpPurpleBackground
-    val cardBackground = if (isDark) Color(0xFF1A1D24) else Color(0xFFFFFFFF)
-    val themePrimary = WtmpPrimary
-    val textMain = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSubtle = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    // Branded Theme Palette
+    val backgroundCol = colorScheme.background
+    val cardBackground = colorScheme.surface
+    val themePrimary = colorScheme.primary
+    val textMain = colorScheme.onBackground
+    val textSubtle = colorScheme.onBackground.copy(alpha = 0.7f)
 
     val infiniteTransition = rememberInfiniteTransition(label = "ambient_pulse")
 
@@ -99,12 +79,7 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
     )
 
     LaunchedEffect(Unit) {
-        // 1. Overall Container Fade In
-        launch {
-            screenAlpha.animateTo(1f, tween(400))
-        }
-
-        // 2. Icon Spring Pop-Up
+        launch { screenAlpha.animateTo(1f, tween(400)) }
         launch {
             iconAlpha.animateTo(1f, tween(300))
             iconScale.animateTo(
@@ -115,39 +90,18 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                 )
             )
         }
-
-        // 3. Staggered Text Slide & Fade Up
         delay(350.milliseconds)
-        launch {
-            textAlpha.animateTo(1f, tween(400))
-        }
-        launch {
-            textOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing))
-        }
-
+        launch { textAlpha.animateTo(1f, tween(400)) }
+        launch { textOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing)) }
         delay(150.milliseconds)
-        launch {
-            subtitleAlpha.animateTo(1f, tween(400))
-        }
-        launch {
-            subtitleOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing))
-        }
-
-        // Total Display Duration
+        launch { subtitleAlpha.animateTo(1f, tween(400)) }
+        launch { subtitleOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing)) }
         delay(1500.milliseconds)
-
-        // 4. Smooth Exit Transition (Zoom & Fade Out)
-        launch {
-            screenAlpha.animateTo(0f, tween(350))
-        }
-        launch {
-            screenScale.animateTo(1.08f, tween(350, easing = FastOutSlowInEasing))
-        }
-
+        launch { screenAlpha.animateTo(0f, tween(350)) }
+        launch { screenScale.animateTo(1.08f, tween(350, easing = FastOutSlowInEasing)) }
         delay(350.milliseconds)
         currentOnNavigate()
     }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -166,7 +120,6 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                     .scale(iconScale.value)
                     .alpha(iconAlpha.value)
             ) {
-                // Outer Radial Glow Circle
                 Box(
                     modifier = Modifier
                         .size(160.dp)
@@ -181,8 +134,6 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                             )
                         )
                 )
-
-                // Inner Soft Core Ring
                 Box(
                     modifier = Modifier
                         .size(105.dp)
@@ -196,8 +147,6 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                             )
                         )
                 )
-
-                // Main Shield Card Container
                 Box(
                     modifier = Modifier
                         .size(88.dp)
@@ -223,10 +172,6 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Main Title
             Text(
                 text = "WTMP",
                 style = MaterialTheme.typography.headlineLarge.copy(
@@ -239,9 +184,6 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                     .alpha(textAlpha.value)
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Subtitle
             Text(
                 text = "Who Touched My Phone?",
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -257,10 +199,7 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
     }
 }
 
-// ---------------------------------------------------------
-// Previews for Android Studio Design Tab
-// ---------------------------------------------------------
-@Preview(name = "Splash Screen - Dark", backgroundColor = 0xFF101216, showBackground = true)
+@Preview(name = "Splash - Dark", showBackground = true)
 @Composable
 fun SplashScreenDarkPreview() {
     WTMPTheme(darkTheme = true) {
@@ -268,7 +207,7 @@ fun SplashScreenDarkPreview() {
     }
 }
 
-@Preview(name = "Splash Screen - Light", backgroundColor = 0xFFF8FAFC, showBackground = true)
+@Preview(name = "Splash - Light", showBackground = true)
 @Composable
 fun SplashScreenLightPreview() {
     WTMPTheme(darkTheme = false) {

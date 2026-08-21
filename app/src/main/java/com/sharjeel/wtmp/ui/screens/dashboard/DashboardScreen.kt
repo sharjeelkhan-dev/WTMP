@@ -92,6 +92,8 @@ import com.sharjeel.wtmp.model.SecurityEventType
 import com.sharjeel.wtmp.service.AdminReceiver
 import com.sharjeel.wtmp.ui.theme.AvatarColors
 import com.sharjeel.wtmp.ui.theme.WTMPTheme
+import com.sharjeel.wtmp.ui.theme.SuccessEmerald
+import com.sharjeel.wtmp.ui.theme.AlertRose
 import com.sharjeel.wtmp.utils.PermissionUtils
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -172,7 +174,7 @@ fun DashboardScreenContent(
                         )
                     }
                 },
-                navigationIcon = { },
+                navigationIcon = {},
                 actions = {
                     IconButton(onClick = { showFilterSheet = true }) {
                         Icon(
@@ -325,21 +327,24 @@ fun SecurityHeroCard(
     onToggle: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
+    val colorScheme = MaterialTheme.colorScheme
+    val primaryColor = colorScheme.primary
+    val surfaceColor = colorScheme.surface
+    val textColor = colorScheme.onSurface
 
     val activeGradient = if (isDark) {
-        listOf(Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F172A))
+        listOf(primaryColor.copy(alpha = 0.25f), Color(0xFF0F172A), Color(0xFF020617))
     } else {
-        listOf(Color(0xFFE2E8F0), Color(0xFFF8FAFC), Color(0xFFE2E8F0))
+        listOf(primaryColor.copy(alpha = 0.08f), surfaceColor, Color(0xFFF1F5F9))
     }
 
     val inactiveGradient = if (isDark) {
-        listOf(Color(0xFF18181B), Color(0xFF27272A))
+        listOf(Color(0xFF1E293B), Color(0xFF0F172A))
     } else {
-        listOf(Color(0xFFF1F5F9), Color(0xFFE2E8F0))
+        listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
     }
 
     val currentGradient = if (isActive) activeGradient else inactiveGradient
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
 
     Card(
         modifier = Modifier
@@ -347,7 +352,7 @@ fun SecurityHeroCard(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
@@ -355,7 +360,7 @@ fun SecurityHeroCard(
                 .background(Brush.verticalGradient(currentGradient))
                 .border(
                     width = 1.dp,
-                    color = if (isActive) Color(0xFF10B981).copy(alpha = 0.3f) else textColor.copy(alpha = 0.1f),
+                    color = if (isActive) SuccessEmerald.copy(alpha = 0.3f) else textColor.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(28.dp)
                 )
                 .padding(22.dp)
@@ -381,7 +386,7 @@ fun SecurityHeroCard(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(if (isActive) Color(0xFF10B981) else Color(0xFFEF4444))
+                            .background(if (isActive) SuccessEmerald else AlertRose)
                     )
                     Text(
                         text = if (isActive) "SHIELD ON" else "SHIELD OFF",
@@ -395,7 +400,7 @@ fun SecurityHeroCard(
                 Surface(
                     onClick = onToggle,
                     shape = CircleShape,
-                    color = if (isActive) Color(0xFF10B981) else Color(0xFFEF4444),
+                    color = if (isActive) SuccessEmerald else AlertRose,
                     shadowElevation = 8.dp,
                     modifier = Modifier.size(64.dp)
                 ) {
@@ -416,6 +421,8 @@ fun SecurityHeroCard(
 @Composable
 fun ProfessionalSecurityHeader(isActive: Boolean) {
     val infiniteTransition = rememberInfiniteTransition(label = "radarSpin")
+    val colorScheme = MaterialTheme.colorScheme
+    val statusColor = if (isActive) SuccessEmerald else AlertRose
 
     val angle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -437,7 +444,7 @@ fun ProfessionalSecurityHeader(isActive: Boolean) {
                     .drawBehind {
                         drawArc(
                             brush = Brush.sweepGradient(
-                                listOf(Color.Transparent, Color(0xFF10B981))
+                                listOf(Color.Transparent, statusColor)
                             ),
                             startAngle = angle,
                             sweepAngle = 120f,
@@ -452,13 +459,10 @@ fun ProfessionalSecurityHeader(isActive: Boolean) {
             modifier = Modifier
                 .size(68.dp)
                 .clip(CircleShape)
-                .background(
-                    if (isActive) Color(0xFF10B981).copy(alpha = 0.15f)
-                    else Color(0xFFEF4444).copy(alpha = 0.15f)
-                )
+                .background(statusColor.copy(alpha = 0.15f))
                 .border(
                     width = 1.5.dp,
-                    color = if (isActive) Color(0xFF10B981).copy(alpha = 0.5f) else Color(0xFFEF4444).copy(alpha = 0.5f),
+                    color = statusColor.copy(alpha = 0.5f),
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -466,7 +470,7 @@ fun ProfessionalSecurityHeader(isActive: Boolean) {
             Icon(
                 painter = painterResource(id = R.drawable.webcam_icon),
                 contentDescription = "Security Status",
-                tint = if (isActive) Color(0xFF10B981) else Color(0xFFEF4444),
+                tint = statusColor,
                 modifier = Modifier.size(34.dp)
             )
         }
@@ -489,7 +493,7 @@ fun EventItem(
         else -> event.type.title
     }
 
-    val patternTint = if (isUnlockSuccess) Color(0xFF4CAF50) else Color(0xFFE53935)
+    val patternTint = if (isUnlockSuccess) SuccessEmerald else AlertRose
     val launchedAppsCount = event.accessedApps.size
     val isSynced = false
 

@@ -1,15 +1,32 @@
 package com.sharjeel.wtmp.ui.screens.privacy
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,28 +35,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharjeel.wtmp.ui.components.GlassCard
-import com.sharjeel.wtmp.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrivacyCenterScreen(
     onNavigateBack: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Privacy Center", color = WtmpPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text("Privacy Center", color = colorScheme.primary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = WtmpPrimary)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = WtmpPurpleBackground
+                    containerColor = colorScheme.background
                 )
             )
         },
-        containerColor = WtmpPurpleBackground
+        containerColor = colorScheme.background
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -99,7 +117,7 @@ fun PrivacyCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = WtmpPrimary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -107,14 +125,14 @@ fun PrivacyCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = WtmpTextPrimary,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = WtmpTextSecondary,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                     lineHeight = 20.sp
                 )
             }
@@ -124,6 +142,8 @@ fun PrivacyCard(
 
 @Composable
 fun DeleteDataSection() {
+    val errorColor = MaterialTheme.colorScheme.error
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -131,19 +151,19 @@ fun DeleteDataSection() {
         Text(
             text = "Data Management",
             style = MaterialTheme.typography.labelLarge,
-            color = WtmpTextSecondary,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             modifier = Modifier.padding(bottom = 12.dp)
         )
         
         Button(
             onClick = { /* TODO: Implement global delete */ },
             colors = ButtonDefaults.buttonColors(
-                containerColor = WtmpRed.copy(alpha = 0.1f),
-                contentColor = WtmpRed
+                containerColor = errorColor.copy(alpha = 0.1f),
+                contentColor = errorColor
             ),
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
-            border = androidx.compose.foundation.BorderStroke(1.dp, WtmpRed.copy(alpha = 0.5f))
+            border = androidx.compose.foundation.BorderStroke(1.dp, errorColor.copy(alpha = 0.5f))
         ) {
             Icon(Icons.Default.Delete, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
@@ -155,7 +175,7 @@ fun DeleteDataSection() {
         Text(
             text = "This action is permanent and cannot be undone.",
             style = MaterialTheme.typography.bodySmall,
-            color = WtmpRed.copy(alpha = 0.7f)
+            color = errorColor.copy(alpha = 0.7f)
         )
     }
 }

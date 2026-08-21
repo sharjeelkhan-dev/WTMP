@@ -2,22 +2,33 @@ package com.sharjeel.wtmp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// WTMP Soft Palette (based on screenshots)
-val WtmpPurpleLight = Color(0xFFE6E0F8)
-val WtmpPurpleBackground = Color(0xFFF3F0FF)
-val WtmpPrimary = Color(0xFF6750A4)
-val WtmpSecondary = Color(0xFF958DA5)
-val WtmpGreen = Color(0xFF81E9A3) // Power button green
-val WtmpRed = Color(0xFFFFD8D8) // Uninstall/Delete red
-val WtmpTextPrimary = Color(0xFF1C1B1F)
-val WtmpTextSecondary = Color(0xFF49454F)
+// 2025 Industry Standard: Titanium Sapphire Palette
+val SapphireBlue = Color(0xFF1D4ED8)
+val CyberCyan = Color(0xFF06B6D4)
+val TitaniumGray = Color(0xFF334155)
+val OnyxBlack = Color(0xFF020617)
+val GhostWhite = Color(0xFFF8FAFC)
 
-// Avatar Colors
+// Light Mode Mappings
+val LightTextPrimary = Color(0xFF0F172A)
+val LightTextSecondary = Color(0xFF475569)
+
+// Dark Mode Mappings
+val DarkSurfaceElevated = Color(0xFF1E293B)
+val DarkTextPrimary = Color(0xFFF1F5F9)
+val DarkTextSecondary = Color(0xFF94A3B8)
+
+// Semantic Status Colors
+val SuccessEmerald = Color(0xFF10B981)
+val AlertRose = Color(0xFFE11D48)
+val WarningAmber = Color(0xFFF59E0B)
+
+// Professional Avatar Colors
 val AvatarColors = listOf(
-    Color(0xFF9B59B6),
-    Color(0xFFE74C3C),
-    Color(0xFF3498DB),
-    Color(0xFFF1C40F),
-    Color(0xFF1ABC9C),
-    Color(0xFFE67E22)
+    Color(0xFF1D4ED8), // Sapphire
+    Color(0xFF06B6D4), // Cyan
+    Color(0xFF10B981), // Emerald
+    Color(0xFFF43F5E), // Rose
+    Color(0xFF8B5CF6), // Violet
+    Color(0xFF64748B)  // Titanium
 )

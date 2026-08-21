@@ -28,6 +28,7 @@ fun StatsScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
         topBar = {
@@ -39,12 +40,12 @@ fun StatsScreen(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
                         ),
-                        color = WtmpPrimary
+                        color = colorScheme.primary
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = WtmpPrimary)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -52,11 +53,11 @@ fun StatsScreen(
                 )
             )
         },
-        containerColor = WtmpPurpleBackground
+        containerColor = colorScheme.background
     ) { padding ->
         if (uiState.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = WtmpPrimary)
+                CircularProgressIndicator(color = colorScheme.primary)
             }
         } else {
             LazyColumn(
@@ -76,13 +77,13 @@ fun StatsScreen(
                             modifier = Modifier.weight(1f),
                             label = "Protected Sessions",
                             value = uiState.protectedSessions.toString(),
-                            color = WtmpPrimary
+                            color = colorScheme.primary
                         )
                         StatCard(
                             modifier = Modifier.weight(1f),
                             label = "Intrusions Prevented",
                             value = uiState.intrusionsPrevented.toString(),
-                            color = WtmpRed
+                            color = colorScheme.error
                         )
                     }
                 }
@@ -92,7 +93,7 @@ fun StatsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = "Avg. Session Length",
                         value = uiState.avgSessionLength,
-                        color = WtmpSecondary
+                        color = colorScheme.secondary
                     )
                 }
 
@@ -122,7 +123,7 @@ private fun StatCard(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            Text(text = label, style = MaterialTheme.typography.labelMedium, color = WtmpTextSecondary)
+            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
@@ -135,12 +136,14 @@ private fun StatCard(
 
 @Composable
 private fun ActivityChartCard(data: List<Float>) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = "Activity Chart",
                 style = MaterialTheme.typography.titleMedium,
-                color = WtmpTextPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -160,7 +163,7 @@ private fun ActivityChartCard(data: List<Float>) {
                     .height(150.dp)
             ) {
                 val path = Path()
-                val points = if (data.isEmpty()) listOf(0f) else data
+                val points = data.ifEmpty { listOf(0f) }
                 val width = size.width
                 val height = size.height
                 val stepX = width / (points.size - 1).coerceAtLeast(1)
@@ -186,13 +189,13 @@ private fun ActivityChartCard(data: List<Float>) {
 
                 drawPath(
                     path = path,
-                    color = WtmpPrimary,
+                    color = primaryColor,
                     style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                 )
 
                 drawPath(
                     path = path,
-                    color = WtmpPrimary.copy(alpha = 0.3f),
+                    color = primaryColor.copy(alpha = 0.3f),
                     style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                 )
             }
@@ -205,12 +208,14 @@ private fun SecurityScoreTrendCard(
     score: Int,
     trend: String
 ) {
+    val successColor = SuccessEmerald
+
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = "Security Score Trend",
                 style = MaterialTheme.typography.titleMedium,
-                color = WtmpTextPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -221,12 +226,12 @@ private fun SecurityScoreTrendCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(text = "Current Score", style = MaterialTheme.typography.labelSmall, color = WtmpTextSecondary)
-                    Text(text = "$score/100", style = MaterialTheme.typography.titleLarge, color = WtmpGreen, fontWeight = FontWeight.Bold)
+                    Text(text = "Current Score", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(text = "$score/100", style = MaterialTheme.typography.titleLarge, color = successColor, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(text = "Last 7 Days", style = MaterialTheme.typography.labelSmall, color = WtmpTextSecondary)
-                    Text(text = trend, style = MaterialTheme.typography.titleMedium, color = WtmpGreen, fontWeight = FontWeight.SemiBold)
+                    Text(text = "Last 7 Days", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(text = trend, style = MaterialTheme.typography.titleMedium, color = successColor, fontWeight = FontWeight.SemiBold)
                 }
             }
             
@@ -235,8 +240,8 @@ private fun SecurityScoreTrendCard(
             LinearProgressIndicator(
                 progress = { score.toFloat() / 100f },
                 modifier = Modifier.fillMaxWidth().height(8.dp),
-                color = WtmpGreen,
-                trackColor = WtmpGreen.copy(alpha = 0.1f),
+                color = successColor,
+                trackColor = successColor.copy(alpha = 0.1f),
                 strokeCap = StrokeCap.Round
             )
         }

@@ -1,5 +1,6 @@
 package com.sharjeel.wtmp.ui.screens.settings
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,11 +23,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -52,14 +51,24 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sharjeel.wtmp.R
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
+    onNavigateBack: () -> Unit = {}
+) {
+    SettingsContent(
+        onNavigateBack = onNavigateBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsContent(
     onNavigateBack: () -> Unit = {}
 ) {
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
@@ -142,20 +151,6 @@ fun SettingsScreen(
                     SettingsItem(
                         icon = Icons.Default.Cloud,
                         title = "Cloud Sync",
-                        showArrow = true,
-                        onClick = { /* Navigate */ }
-                    )
-                    SettingsDivider()
-                    SettingsItem(
-                        icon = Icons.AutoMirrored.Filled.HelpOutline,
-                        title = "Help & Support",
-                        showArrow = true,
-                        onClick = { /* Navigate */ }
-                    )
-                    SettingsDivider()
-                    SettingsItem(
-                        icon = Icons.Default.Info,
-                        title = "About WTMP",
                         showArrow = true,
                         onClick = { /* Navigate */ }
                     )
@@ -249,7 +244,6 @@ private fun SettingsItemContent(
     val contentColor = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     val iconBgColor = if (isDanger) MaterialTheme.colorScheme.error.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
 
-    // Fixed Red color for both Light and Dark mode when isDanger is true
     val iconTint = if (isDanger) Color(0xFFE53935) else MaterialTheme.colorScheme.primary
 
     Surface(
@@ -306,4 +300,13 @@ fun SettingsDivider() {
         thickness = 0.8.dp,
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     )
+}
+
+@Preview(name = "Light Mode", showBackground = true)
+@Preview(name = "Dark Mode", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun SettingsScreenPreview() {
+    MaterialTheme {
+        SettingsContent()
+    }
 }
