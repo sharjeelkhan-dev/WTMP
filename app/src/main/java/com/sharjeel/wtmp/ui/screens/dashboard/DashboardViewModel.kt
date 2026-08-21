@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
 import com.sharjeel.wtmp.model.SecurityEvent
+import com.sharjeel.wtmp.model.SecurityEventType
 import com.sharjeel.wtmp.service.MonitoringService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -66,10 +67,13 @@ class DashboardViewModel @Inject constructor(
                 TimeInterval.ALL -> true
             }
 
-            val matchesType = when (event.type.title) {
-                "Device Unlocked" -> ReportType.SUCCESSFUL_UNLOCK in types
-                "Unsuccessful Unlock" -> ReportType.UNSUCCESSFUL_UNLOCK in types
-                "App Launched" -> ReportType.APP_LAUNCHED in types
+            val matchesType = when (event.type) {
+                SecurityEventType.DEVICE_UNLOCKED, SecurityEventType.UNEXPECTED_UNLOCK -> 
+                    ReportType.SUCCESSFUL_UNLOCK in types
+                SecurityEventType.FAILED_UNLOCK, SecurityEventType.FAILED_ATTEMPT -> 
+                    ReportType.UNSUCCESSFUL_UNLOCK in types
+                SecurityEventType.APP_OPENED -> 
+                    ReportType.APP_LAUNCHED in types
                 else -> true
             }
 

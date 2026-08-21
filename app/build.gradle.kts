@@ -43,7 +43,6 @@ android {
 }
 
 dependencies {
-    implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
@@ -64,6 +63,9 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+
+    // Gson (Added for Room Type Converters)
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Navigation
     implementation(libs.navigation.compose)

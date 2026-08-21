@@ -24,7 +24,9 @@ object DatabaseModule {
             context,
             WTMPDatabase::class.java,
             "wtmp_db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

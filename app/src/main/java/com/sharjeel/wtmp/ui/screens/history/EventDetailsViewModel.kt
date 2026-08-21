@@ -26,6 +26,16 @@ class EventDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getAllEvents().collect { events ->
                 _allEvents.value = events
+                
+                // Keep the current displayed event updated if it changes in the database
+                val current = _event.value
+                if (current != null) {
+                    val updated = events.find { it.id == current.id }
+                    if (updated != null && updated != current) {
+                        _event.value = updated
+                    }
+                }
+                
                 updateCurrentIndex()
             }
         }

@@ -65,7 +65,8 @@ class SecurityRepositoryImpl @Inject constructor(
             severity = com.sharjeel.wtmp.model.EventSeverity.valueOf(severity),
             sessionDuration = sessionDuration,
             deviceState = deviceState,
-            evidencePath = evidencePath
+            evidencePath = evidencePath,
+            accessedApps = accessedApps
         )
     }
 
@@ -77,7 +78,8 @@ class SecurityRepositoryImpl @Inject constructor(
             severity = severity.name,
             sessionDuration = sessionDuration,
             deviceState = deviceState,
-            evidencePath = evidencePath
+            evidencePath = evidencePath,
+            accessedApps = accessedApps
         )
     }
 }

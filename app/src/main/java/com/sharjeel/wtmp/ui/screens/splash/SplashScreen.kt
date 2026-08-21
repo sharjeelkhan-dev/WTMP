@@ -2,22 +2,26 @@ package com.sharjeel.wtmp.ui.screens.splash
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,118 +37,221 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sharjeel.wtmp.R
 import com.sharjeel.wtmp.ui.theme.WTMPTheme
+import com.sharjeel.wtmp.ui.theme.WtmpPrimary
+import com.sharjeel.wtmp.ui.theme.WtmpPurpleBackground
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
-    val alpha = remember { Animatable(0f) }
-    val scale = remember { Animatable(0.85f) }
     val currentOnNavigate by rememberUpdatedState(onNavigationToOnboarding)
-
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse_animation")
-
     val isDark = isSystemInDarkTheme()
 
-    // Improved High-Visibility Colors for both modes
-    val backgroundCol = if (isDark) Color(0xFF131418) else Color(0xFFF1F5F9)
-    val cardBackground = if (isDark) Color(0xFF1E1F25) else Color(0xFFFFFFFF)
-    val primaryBlue = Color(0xFF2196F3)
-    val textMain = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSubtle = if (isDark) Color(0xFF8E8E93) else Color(0xFF475569) // Darker for better visibility
+    // Screen Exit Animation States
+    val screenAlpha = remember { Animatable(0f) }
+    val screenScale = remember { Animatable(0.92f) }
 
-    val pulseGlowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.65f,
+    // Staggered Animations for Elements
+    val iconScale = remember { Animatable(0.4f) }
+    val iconAlpha = remember { Animatable(0f) }
+
+    val textAlpha = remember { Animatable(0f) }
+    val textOffsetY = remember { Animatable(20f) }
+
+    val subtitleAlpha = remember { Animatable(0f) }
+    val subtitleOffsetY = remember { Animatable(15f) }
+
+    // Colors Setup
+    val backgroundCol = if (isDark) Color(0xFF101216) else WtmpPurpleBackground
+    val cardBackground = if (isDark) Color(0xFF1A1D24) else Color(0xFFFFFFFF)
+    val themePrimary = WtmpPrimary
+    val textMain = if (isDark) Color.White else Color(0xFF0F172A)
+    val textSubtle = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "ambient_pulse")
+
+    val outerPulseGlow by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.55f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = FastOutSlowInEasing),
+            animation = tween(1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "pulseGlowAlpha"
+        label = "outerPulseGlow"
+    )
+
+    val innerPulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "innerPulseScale"
     )
 
     LaunchedEffect(Unit) {
-        alpha.animateTo(1f, animationSpec = tween(800))
-        scale.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
-        delay(1800.milliseconds)
+        // 1. Overall Container Fade In
+        launch {
+            screenAlpha.animateTo(1f, tween(400))
+        }
+
+        // 2. Icon Spring Pop-Up
+        launch {
+            iconAlpha.animateTo(1f, tween(300))
+            iconScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+
+        // 3. Staggered Text Slide & Fade Up
+        delay(350.milliseconds)
+        launch {
+            textAlpha.animateTo(1f, tween(400))
+        }
+        launch {
+            textOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing))
+        }
+
+        delay(150.milliseconds)
+        launch {
+            subtitleAlpha.animateTo(1f, tween(400))
+        }
+        launch {
+            subtitleOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing))
+        }
+
+        // Total Display Duration
+        delay(1500.milliseconds)
+
+        // 4. Smooth Exit Transition (Zoom & Fade Out)
+        launch {
+            screenAlpha.animateTo(0f, tween(350))
+        }
+        launch {
+            screenScale.animateTo(1.08f, tween(350, easing = FastOutSlowInEasing))
+        }
+
+        delay(350.milliseconds)
         currentOnNavigate()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundCol),
+            .background(backgroundCol)
+            .alpha(screenAlpha.value)
+            .scale(screenScale.value),
         contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .alpha(alpha.value)
-                .scale(scale.value)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(130.dp)
+                modifier = Modifier
+                    .size(140.dp)
+                    .scale(iconScale.value)
+                    .alpha(iconAlpha.value)
             ) {
-                // Background Soft Blue Radial Glow Effect with higher clarity
+                // Outer Radial Glow Circle
                 Box(
                     modifier = Modifier
-                        .size(150.dp)
+                        .size(160.dp)
+                        .scale(innerPulseScale)
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    primaryBlue.copy(alpha = pulseGlowAlpha),
+                                    themePrimary.copy(alpha = outerPulseGlow),
                                     Color.Transparent
                                 )
                             )
                         )
                 )
+
+                // Inner Soft Core Ring
+                Box(
+                    modifier = Modifier
+                        .size(105.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    themePrimary.copy(alpha = 0.25f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+
+                // Main Shield Card Container
                 Box(
                     modifier = Modifier
                         .size(88.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(26.dp))
                         .background(cardBackground)
                         .border(
                             width = 1.5.dp,
                             brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    primaryBlue.copy(alpha = if (isDark) 0.6f else 0.4f),
-                                    primaryBlue.copy(alpha = 0.1f)
+                                    themePrimary.copy(alpha = if (isDark) 0.7f else 0.45f),
+                                    themePrimary.copy(alpha = 0.08f)
                                 )
                             ),
-                            shape = RoundedCornerShape(24.dp)
+                            shape = RoundedCornerShape(26.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Shield,
-                        contentDescription = "WTMP Shield",
-                        tint = primaryBlue,
-                        modifier = Modifier.size(46.dp)
+                        painter = painterResource(id = R.drawable.webcam_icon),
+                        contentDescription = "WTMP CCTV",
+                        tint = themePrimary,
+                        modifier = Modifier.size(44.dp)
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Main Title
             Text(
                 text = "WTMP",
                 style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Black,
                     letterSpacing = 10.sp
                 ),
-                color = textMain
+                color = textMain,
+                modifier = Modifier
+                    .offset(y = textOffsetY.value.dp)
+                    .alpha(textAlpha.value)
             )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Subtitle
             Text(
                 text = "Who Touched My Phone?",
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold, // Bolded slightly for crisp visibility
-                    letterSpacing = 1.2.sp
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.5.sp
                 ),
-                color = textSubtle
+                color = textSubtle,
+                modifier = Modifier
+                    .offset(y = subtitleOffsetY.value.dp)
+                    .alpha(subtitleAlpha.value)
             )
         }
     }
@@ -153,7 +260,7 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
 // ---------------------------------------------------------
 // Previews for Android Studio Design Tab
 // ---------------------------------------------------------
-@Preview(name = "Splash Screen - Dark", backgroundColor = 0xFF131418, showBackground = true)
+@Preview(name = "Splash Screen - Dark", backgroundColor = 0xFF101216, showBackground = true)
 @Composable
 fun SplashScreenDarkPreview() {
     WTMPTheme(darkTheme = true) {
@@ -161,7 +268,7 @@ fun SplashScreenDarkPreview() {
     }
 }
 
-@Preview(name = "Splash Screen - Light", backgroundColor = 0xFFF1F5F9, showBackground = true)
+@Preview(name = "Splash Screen - Light", backgroundColor = 0xFFF8FAFC, showBackground = true)
 @Composable
 fun SplashScreenLightPreview() {
     WTMPTheme(darkTheme = false) {

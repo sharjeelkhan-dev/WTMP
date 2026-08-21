@@ -6,6 +6,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.admin.DeviceAdminReceiver
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -27,6 +29,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
+import com.sharjeel.wtmp.model.AppUsageInfo
 import com.sharjeel.wtmp.model.EventSeverity
 import com.sharjeel.wtmp.model.SecurityEvent
 import com.sharjeel.wtmp.model.SecurityEventType
@@ -44,6 +47,7 @@ import java.util.Locale
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @AndroidEntryPoint
 class MonitoringService : LifecycleService() {
@@ -203,7 +207,8 @@ class MonitoringService : LifecycleService() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("WTMP Security Monitoring Active")
             .setContentText("Listening for device unlock events...")
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(com.sharjeel.wtmp.R.drawable.webcam_icon)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, com.sharjeel.wtmp.R.drawable.webcam_icon))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
@@ -224,8 +229,9 @@ class MonitoringService : LifecycleService() {
 
         val alertNotification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setContentTitle("Failed Unlock Attempt Detected")
-            .setContentText("Someone tried to unlock your device with an incorrect password/pattern.")
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentText("Another failed Attempt to unlock the Device")
+            .setSmallIcon(com.sharjeel.wtmp.R.drawable.webcam_icon)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, com.sharjeel.wtmp.R.drawable.webcam_icon))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
@@ -240,6 +246,7 @@ class MonitoringService : LifecycleService() {
         isProcessingEvent = true
 
         lifecycleScope.launch {
+            val eventStartTime = System.currentTimeMillis()
             try {
                 delay(300.milliseconds)
 
@@ -254,23 +261,24 @@ class MonitoringService : LifecycleService() {
                     }
                 }
 
+                val eventType = if (isFailedAttempt) {
+                    SecurityEventType.FAILED_UNLOCK
+                } else {
+                    SecurityEventType.DEVICE_UNLOCKED
+                }
+
+                val initialEvent = SecurityEvent(
+                    type = eventType,
+                    timestamp = eventStartTime,
+                    severity = if (isFailedAttempt) EventSeverity.HIGH else EventSeverity.MEDIUM,
+                    evidencePath = evidencePath,
+                    deviceState = if (isFailedAttempt) "Unlock Failed" else "Device Unlocked",
+                    accessedApps = emptyList()
+                )
+
                 withContext(Dispatchers.IO) {
-                    val eventType = if (isFailedAttempt) {
-                        SecurityEventType.FAILED_UNLOCK
-                    } else {
-                        SecurityEventType.DEVICE_UNLOCKED
-                    }
-
-                    val event = SecurityEvent(
-                        type = eventType,
-                        timestamp = System.currentTimeMillis(),
-                        severity = if (isFailedAttempt) EventSeverity.HIGH else EventSeverity.MEDIUM,
-                        evidencePath = evidencePath,
-                        deviceState = if (isFailedAttempt) "Unlock Failed" else "Device Unlocked"
-                    )
-
-                    repository.saveEvent(event)
-                    Log.d(TAG, "Security event saved into DB: $event")
+                    repository.saveEvent(initialEvent)
+                    Log.d(TAG, "Initial security event saved: $initialEvent")
 
                     if (repository.isAlarmEnabled.first()) {
                         playAlarm()
@@ -279,12 +287,60 @@ class MonitoringService : LifecycleService() {
                         vibrate()
                     }
                 }
+
+                // Wait and update apps launched after unlock
+                if (!isFailedAttempt) {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        delay(25.seconds)
+                        val apps = getLaunchedAppsAfterUnlock(eventStartTime)
+                        if (apps.isNotEmpty()) {
+                            val updatedEvent = initialEvent.copy(accessedApps = apps)
+                            repository.saveEvent(updatedEvent)
+                            Log.d(TAG, "Updated event with ${apps.size} apps")
+                        }
+                    }
+                }
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error executing security event processing", e)
             } finally {
                 isProcessingEvent = false
             }
         }
+    }
+
+    private suspend fun getLaunchedAppsAfterUnlock(startTime: Long): List<AppUsageInfo> = withContext(Dispatchers.IO) {
+        val usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return@withContext emptyList()
+
+        val endTime = System.currentTimeMillis()
+        Log.d(TAG, "Querying usage events from $startTime to $endTime")
+        val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
+        val appList = mutableListOf<AppUsageInfo>()
+
+        val event = UsageEvents.Event()
+        while (usageEvents.hasNextEvent()) {
+            usageEvents.getNextEvent(event)
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                val pkgName = event.packageName
+                if (pkgName != packageName && !pkgName.contains("launcher", ignoreCase = true)) {
+                    try {
+                        val appInfo = packageManager.getApplicationInfo(pkgName, 0)
+                        val appName = packageManager.getApplicationLabel(appInfo).toString()
+                        appList.add(
+                            AppUsageInfo(
+                                packageName = pkgName,
+                                appName = appName,
+                                launchedTimestamp = event.timeStamp
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Could not fetch app label for $pkgName", e)
+                    }
+                }
+            }
+        }
+        return@withContext appList.distinctBy { it.packageName }
     }
 
     @SuppressLint("MissingPermission")
@@ -462,7 +518,6 @@ class AdminReceiver : DeviceAdminReceiver() {
         super.onPasswordFailed(context, intent)
         Log.d("AdminReceiver", "Device Admin detected failed password attempt")
 
-        // Send direct broadcast to dynamically registered receiver and start service if killed
         val broadcastIntent = Intent(MonitoringService.ACTION_FAILED_UNLOCK).apply {
             setPackage(context.packageName)
         }

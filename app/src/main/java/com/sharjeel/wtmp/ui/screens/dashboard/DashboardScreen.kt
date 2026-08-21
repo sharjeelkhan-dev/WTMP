@@ -1,5 +1,9 @@
 package com.sharjeel.wtmp.ui.screens.dashboard
 
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Intent
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -41,10 +46,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pattern
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -76,14 +79,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sharjeel.wtmp.R
+import com.sharjeel.wtmp.model.AppUsageInfo
+import com.sharjeel.wtmp.model.EventSeverity
 import com.sharjeel.wtmp.model.SecurityEvent
 import com.sharjeel.wtmp.model.SecurityEventType
+import com.sharjeel.wtmp.service.AdminReceiver
 import com.sharjeel.wtmp.ui.theme.AvatarColors
+import com.sharjeel.wtmp.ui.theme.WTMPTheme
 import com.sharjeel.wtmp.utils.PermissionUtils
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -97,6 +105,29 @@ fun DashboardScreen(
     onNavigateToSettings: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    DashboardScreenContent(
+        uiState = uiState,
+        onToggleProtection = viewModel::toggleProtection,
+        onTimeIntervalSelected = viewModel::setTimeInterval,
+        onReportTypeToggled = viewModel::toggleReportType,
+        onResetFilters = viewModel::resetFilters,
+        onNavigateToEventDetails = onNavigateToEventDetails,
+        onNavigateToSettings = onNavigateToSettings
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DashboardScreenContent(
+    uiState: DashboardUiState,
+    onToggleProtection: () -> Unit,
+    onTimeIntervalSelected: (TimeInterval) -> Unit,
+    onReportTypeToggled: (ReportType) -> Unit,
+    onResetFilters: () -> Unit,
+    onNavigateToEventDetails: (String) -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
     var showFilterSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -105,7 +136,7 @@ fun DashboardScreen(
     ) { permissions ->
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
-            viewModel.toggleProtection()
+            onToggleProtection()
         } else {
             Toast.makeText(context, "Permissions required for protection", Toast.LENGTH_LONG).show()
         }
@@ -176,13 +207,25 @@ fun DashboardScreen(
                 isActive = uiState.isProtectionActive,
                 onToggle = {
                     if (!uiState.isProtectionActive) {
-                        if (PermissionUtils.hasAllPermissions(context)) {
-                            viewModel.toggleProtection()
+                        if (PermissionUtils.hasAllPermissions(context) && PermissionUtils.isAdminActive(context)) {
+                            onToggleProtection()
                         } else {
-                            permissionLauncher.launch(PermissionUtils.getRequiredPermissions())
+                            if (!PermissionUtils.isAdminActive(context)) {
+                                Toast.makeText(context, "Activate Device Admin to detect failed unlocks", Toast.LENGTH_LONG).show()
+                                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, ComponentName(context, AdminReceiver::class.java))
+                                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to monitor failed unlock attempts.")
+                                }
+                                context.startActivity(intent)
+                            } else if (!PermissionUtils.hasUsageStatsPermission(context)) {
+                                Toast.makeText(context, "Grant Usage Access to track apps", Toast.LENGTH_LONG).show()
+                                context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                            } else {
+                                permissionLauncher.launch(PermissionUtils.getRequiredPermissions())
+                            }
                         }
                     } else {
-                        viewModel.toggleProtection()
+                        onToggleProtection()
                     }
                 }
             )
@@ -232,12 +275,46 @@ fun DashboardScreen(
         FilterBottomSheet(
             currentInterval = uiState.timeInterval,
             selectedTypes = uiState.reportTypes,
-            onIntervalSelected = viewModel::setTimeInterval,
-            onTypeToggled = viewModel::toggleReportType,
-            onResetFilters = {
-                viewModel.setTimeInterval(TimeInterval.entries.first())
-            },
+            onIntervalSelected = onTimeIntervalSelected,
+            onTypeToggled = onReportTypeToggled,
+            onResetFilters = onResetFilters,
             onDismiss = { showFilterSheet = false }
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DashboardScreenPreview() {
+    WTMPTheme {
+        DashboardScreenContent(
+            uiState = DashboardUiState(
+                isProtectionActive = true,
+                currentDate = "SATURDAY, 18 JULY 2026",
+                events = listOf(
+                    SecurityEvent(
+                        type = SecurityEventType.DEVICE_UNLOCKED,
+                        timestamp = System.currentTimeMillis(),
+                        deviceState = "Device Unlocked",
+                        accessedApps = listOf(
+                            AppUsageInfo("com.android.chrome", "Chrome", launchedTimestamp = System.currentTimeMillis()),
+                            AppUsageInfo("com.google.android.youtube", "YouTube", launchedTimestamp = System.currentTimeMillis())
+                        )
+                    ),
+                    SecurityEvent(
+                        type = SecurityEventType.FAILED_UNLOCK,
+                        timestamp = System.currentTimeMillis() - 3600000,
+                        deviceState = "Unlock Failed",
+                        severity = EventSeverity.HIGH
+                    )
+                )
+            ),
+            onToggleProtection = {},
+            onTimeIntervalSelected = {},
+            onReportTypeToggled = {},
+            onResetFilters = {},
+            onNavigateToEventDetails = {},
+            onNavigateToSettings = {}
         )
     }
 }
@@ -347,8 +424,7 @@ fun ProfessionalSecurityHeader(isActive: Boolean) {
             animation = tween(3000),
             repeatMode = RepeatMode.Restart
         ),
-        label = "angle"
-    )
+        label = "angle")
 
     Box(
         modifier = Modifier.size(100.dp),
@@ -414,7 +490,7 @@ fun EventItem(
     }
 
     val patternTint = if (isUnlockSuccess) Color(0xFF4CAF50) else Color(0xFFE53935)
-    val launchedAppsCount = 0
+    val launchedAppsCount = event.accessedApps.size
     val isSynced = false
 
     ElevatedCard(
@@ -442,16 +518,32 @@ fun EventItem(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = when (event.type) {
-                        SecurityEventType.DEVICE_UNLOCKED, SecurityEventType.UNEXPECTED_UNLOCK -> Icons.Default.LockOpen
-                        SecurityEventType.FAILED_UNLOCK, SecurityEventType.FAILED_ATTEMPT -> Icons.Default.Security
-                        else -> Icons.Default.Person
-                    },
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
+                when (event.type) {
+                    SecurityEventType.FAILED_UNLOCK, SecurityEventType.FAILED_ATTEMPT -> {
+                        Icon(
+                            painter = painterResource(id = R.drawable.cross_icon),
+                            contentDescription = "Failed Attempt",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    SecurityEventType.DEVICE_UNLOCKED, SecurityEventType.UNEXPECTED_UNLOCK -> {
+                        Icon(
+                            painter = painterResource(id = R.drawable.unlock_icon),
+                            contentDescription = "Device Unlocked",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    else -> {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -558,6 +650,7 @@ fun FilterBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        windowInsets = WindowInsets(0),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = sheetContainerColor,
         tonalElevation = 16.dp,
@@ -574,8 +667,9 @@ fun FilterBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 8.dp)
-                .padding(bottom = 36.dp),
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
