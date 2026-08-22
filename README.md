@@ -18,15 +18,15 @@
 <br/>
 <table width="100%">
  <tr>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/YOUR_IMAGE_ID_1" width="100%" alt="Screen 1 - Dashboard / Security Toggle" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/YOUR_IMAGE_ID_2" width="100%" alt="Screen 2 - Intruder Logs List" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/YOUR_IMAGE_ID_3" width="100%" alt="Screen 3 - Intrusion Log Detail Screen" /></td>
+    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/dd3206f3-f169-4f2d-8ed1-0e2dd39ab560" width="100%" alt="Screen 1 - Dashboard / Security Toggle" /></td>
+    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/ec86410c-8a95-4cad-8ea3-3db45d89d2d5" width="100%" alt="Screen 2 - Intruder Logs List" /></td>
+    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/1675c88a-17ac-4cd8-af91-5a3d569cecca" width="100%" alt="Screen 3 - Intrusion Log Detail Screen" /></td>
  </tr>
  
   <tr>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/YOUR_IMAGE_ID_4" width="100%" alt="Screen 4 - AI Threat Analysis" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/YOUR_IMAGE_ID_5" width="100%" alt="Screen 5 - Captured Media Gallery" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/YOUR_IMAGE_ID_6" width="100%" alt="Screen 6 - App Settings & Security" /></td>
+    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/a820e847-e7dd-4a97-aa9a-b1bd1e89b565" width="100%" alt="Screen 4 - AI Threat Analysis" /></td>
+    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/52b18a56-70ba-42ac-b13f-f34078804116" width="100%" alt="Screen 5 - Captured Media Gallery" /></td>
+    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/e7caa7f0-e93d-442d-959b-1542bd333348" width="100%" alt="Screen 6 - App Settings & Security" /></td>
  </tr>
  
 </table>
