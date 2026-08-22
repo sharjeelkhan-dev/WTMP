@@ -145,13 +145,13 @@ fun EventDetailsScreen(
                                     painter = painterResource(id = R.drawable.no_image_photography_icon),
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.outline
+                                    tint = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "No Photo Evidence",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.outline,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -198,7 +198,7 @@ fun EventDetailsScreen(
                                 Text(
                                     text = "Date & Time",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.outline
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = dateFormat.format(Date(event.timestamp)),
@@ -235,7 +235,7 @@ fun EventDetailsScreen(
                                 Text(
                                     text = "Trigger Event",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.outline
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = triggerTitle,
@@ -261,9 +261,7 @@ fun EventDetailsScreen(
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
-
                 // Launched Apps Details Section
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -288,7 +286,7 @@ fun EventDetailsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Apps,
+                                    painter = painterResource(id = R.drawable.four_squares_icon),
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.tertiary
@@ -354,7 +352,7 @@ fun EventDetailsScreen(
                         Text(
                             text = "Reports",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         IconButton(onClick = { viewModel.navigateToNext() }) {
@@ -728,7 +726,7 @@ private fun EventDetailsScreenPreviewContent(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Apps,
+                                painter = painterResource(id = R.drawable.four_squares_icon),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.tertiary

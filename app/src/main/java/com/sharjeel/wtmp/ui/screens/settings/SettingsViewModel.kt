@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val themeMode: String = "System Default",
+    val themeMode: String = "System",
     val isBiometricEnabled: Boolean = false,
     val detectionSensitivity: Float = 0.5f,
     val autoDeletePeriod: Int = 30,
@@ -24,24 +27,20 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        combine(
-            repository.themeMode,
-            repository.isBiometricEnabled,
-            repository.detectionSensitivity
-        ) { theme, bio, sens -> Triple(theme, bio, sens) },
-        combine(
-            repository.autoDeletePeriod,
-            repository.isAlarmEnabled,
-            repository.isVibrationEnabled
-        ) { period, alarm, vib -> Triple(period, alarm, vib) }
-    ) { t1, t2 ->
+        repository.themeMode,
+        repository.isBiometricEnabled,
+        repository.detectionSensitivity,
+        repository.autoDeletePeriod,
+        repository.isAlarmEnabled,
+        repository.isVibrationEnabled
+    ) { flows: Array<Any?> ->
         SettingsUiState(
-            themeMode = t1.first,
-            isBiometricEnabled = t1.second,
-            detectionSensitivity = t1.third,
-            autoDeletePeriod = t2.first,
-            isAlarmEnabled = t2.second,
-            isVibrationEnabled = t2.third,
+            themeMode = flows[0] as String,
+            isBiometricEnabled = flows[1] as Boolean,
+            detectionSensitivity = flows[2] as Float,
+            autoDeletePeriod = flows[3] as Int,
+            isAlarmEnabled = flows[4] as Boolean,
+            isVibrationEnabled = flows[5] as Boolean,
             isLoading = false
         )
     }.stateIn(
@@ -88,7 +87,7 @@ class SettingsViewModel @Inject constructor(
 
     fun clearData() {
         viewModelScope.launch {
-            repository.deleteOlderThan(0) // 0 means delete all
+            repository.deleteOlderThan(System.currentTimeMillis())
         }
     }
 }

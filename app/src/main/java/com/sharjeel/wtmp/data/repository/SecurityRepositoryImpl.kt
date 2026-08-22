@@ -2,17 +2,17 @@ package com.sharjeel.wtmp.data.repository
 
 import com.sharjeel.wtmp.data.database.SecurityEventDao
 import com.sharjeel.wtmp.data.database.SecurityEventEntity
-import com.sharjeel.wtmp.data.preferences.PreferenceManager
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
 import com.sharjeel.wtmp.model.SecurityEvent
 import com.sharjeel.wtmp.model.SecurityEventType
+import com.sharjeel.wtmp.repository.UserPreferencesRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class SecurityRepositoryImpl @Inject constructor(
     private val dao: SecurityEventDao,
-    private val preferenceManager: PreferenceManager
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : SecurityRepository {
 
     override fun getAllEvents(): Flow<List<SecurityEvent>> {
@@ -37,24 +37,25 @@ class SecurityRepositoryImpl @Inject constructor(
         dao.deleteOlderThan(timestamp)
     }
 
-    // Preferences
-    override val isFirstTime: Flow<Boolean> = preferenceManager.isFirstTime
-    override val themeMode: Flow<String> = preferenceManager.themeMode
-    override val isBiometricEnabled: Flow<Boolean> = preferenceManager.isBiometricEnabled
-    override val detectionSensitivity: Flow<Float> = preferenceManager.detectionSensitivity
-    override val isProtectionActive: Flow<Boolean> = preferenceManager.isProtectionActive
-    override val autoDeletePeriod: Flow<Int> = preferenceManager.autoDeletePeriod
-    override val isAlarmEnabled: Flow<Boolean> = preferenceManager.isAlarmEnabled
-    override val isVibrationEnabled: Flow<Boolean> = preferenceManager.isVibrationEnabled
+    // Preferences Delegations
+    override val isFirstTime: Flow<Boolean> = userPreferencesRepository.hasCompletedOnboarding.map { !it }
+    override val themeMode: Flow<String> = userPreferencesRepository.themeMode
+    override val isBiometricEnabled: Flow<Boolean> = userPreferencesRepository.isBiometricEnabled
+    override val detectionSensitivity: Flow<Float> = userPreferencesRepository.detectionSensitivity
+    override val autoDeletePeriod: Flow<Int> = userPreferencesRepository.autoDeletePeriod
+    override val isAlarmEnabled: Flow<Boolean> = userPreferencesRepository.isAlarmEnabled
+    override val isVibrationEnabled: Flow<Boolean> = userPreferencesRepository.isVibrationEnabled
 
-    override suspend fun setFirstTime(isFirstTime: Boolean) = preferenceManager.setFirstTime(isFirstTime)
-    override suspend fun setThemeMode(mode: String) = preferenceManager.setThemeMode(mode)
-    override suspend fun setBiometricEnabled(enabled: Boolean) = preferenceManager.setBiometricEnabled(enabled)
-    override suspend fun setDetectionSensitivity(sensitivity: Float) = preferenceManager.setDetectionSensitivity(sensitivity)
-    override suspend fun setProtectionActive(active: Boolean) = preferenceManager.setProtectionActive(active)
-    override suspend fun setAutoDeletePeriod(days: Int) = preferenceManager.setAutoDeletePeriod(days)
-    override suspend fun setAlarmEnabled(enabled: Boolean) = preferenceManager.setAlarmEnabled(enabled)
-    override suspend fun setVibrationEnabled(enabled: Boolean) = preferenceManager.setVibrationEnabled(enabled)
+    override val isProtectionActive: Flow<Boolean> = userPreferencesRepository.isBiometricEnabled
+
+    override suspend fun setFirstTime(isFirstTime: Boolean) = userPreferencesRepository.setOnboardingCompleted()
+    override suspend fun setThemeMode(mode: String) = userPreferencesRepository.setThemeMode(mode)
+    override suspend fun setBiometricEnabled(enabled: Boolean) = userPreferencesRepository.setBiometricEnabled(enabled)
+    override suspend fun setDetectionSensitivity(sensitivity: Float) = userPreferencesRepository.setDetectionSensitivity(sensitivity)
+    override suspend fun setProtectionActive(active: Boolean) = userPreferencesRepository.setBiometricEnabled(active)
+    override suspend fun setAutoDeletePeriod(days: Int) = userPreferencesRepository.setAutoDeletePeriod(days)
+    override suspend fun setAlarmEnabled(enabled: Boolean) = userPreferencesRepository.setAlarmEnabled(enabled)
+    override suspend fun setVibrationEnabled(enabled: Boolean) = userPreferencesRepository.setVibrationEnabled(enabled)
 
     // Mappers
     private fun SecurityEventEntity.toDomain(): SecurityEvent {
