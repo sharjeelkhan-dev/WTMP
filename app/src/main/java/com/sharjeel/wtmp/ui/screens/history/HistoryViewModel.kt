@@ -77,7 +77,7 @@ class HistoryViewModel @Inject constructor(
         val calendar = Calendar.getInstance()
         val today = calendar.get(Calendar.DAY_OF_YEAR)
         val year = calendar.get(Calendar.YEAR)
-        
+
         calendar.timeInMillis = timestamp
         return calendar.get(Calendar.DAY_OF_YEAR) == today && calendar.get(Calendar.YEAR) == year
     }

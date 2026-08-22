@@ -5,9 +5,10 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
-import com.sharjeel.wtmp.model.SecurityEvent
-import com.sharjeel.wtmp.model.SecurityEventType
+import com.sharjeel.wtmp.model.*
 import com.sharjeel.wtmp.service.MonitoringService
+import com.google.firebase.ai.GenerativeModel
+import com.sharjeel.wtmp.domain.service.AiSecurityService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -33,15 +34,21 @@ data class DashboardUiState(
     val timeInterval: TimeInterval = TimeInterval.ALL,
     val reportTypes: Set<ReportType> = ReportType.entries.toSet(),
     val isLoading: Boolean = false,
-    val currentDate: String = "" // Added to dynamically update date and year
+    val currentDate: String = "",
+    val customReport: AiSecurityReport? = null,
+    val isAiLoading: Boolean = false
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val repository: SecurityRepository,
+    private val aiSecurityService: AiSecurityService,
+    private val generativeModel: GenerativeModel?,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    private val _customReport = MutableStateFlow<AiSecurityReport?>(null)
+    private val _isAiLoading = MutableStateFlow(false)
     private val _timeInterval = MutableStateFlow(TimeInterval.ALL)
     private val _reportTypes = MutableStateFlow(ReportType.entries.toSet())
 
@@ -54,8 +61,10 @@ class DashboardViewModel @Inject constructor(
         repository.isProtectionActive,
         repository.getAllEvents(),
         _timeInterval,
-        _reportTypes
-    ) { active, events, interval, types ->
+        _reportTypes,
+        combine(_customReport, _isAiLoading) { report, loading -> report to loading }
+    ) { active, events, interval, types, aiState ->
+        val (report, aiLoading) = aiState
         val todayCount = events.count { isToday(it.timestamp) }
 
         val filteredEvents = events.filter { event ->
@@ -87,7 +96,9 @@ class DashboardViewModel @Inject constructor(
             timeInterval = interval,
             reportTypes = types,
             isLoading = false,
-            currentDate = getFormattedCurrentDate()
+            currentDate = getFormattedCurrentDate(),
+            customReport = report,
+            isAiLoading = aiLoading
         )
     }.stateIn(
         scope = viewModelScope,
@@ -126,6 +137,22 @@ class DashboardViewModel @Inject constructor(
                 context.startForegroundService(intent)
             } else {
                 context.stopService(intent)
+            }
+        }
+    }
+
+    fun generateCustomAiReport(userPrompt: String) {
+        if (generativeModel == null) return
+        
+        viewModelScope.launch {
+            _isAiLoading.value = true
+            try {
+                val events = repository.getAllEvents().first()
+                _customReport.value = aiSecurityService.generateCustomReport(userPrompt, events)
+            } catch (e: Exception) {
+                _customReport.value = null
+            } finally {
+                _isAiLoading.value = false
             }
         }
     }

@@ -2,7 +2,6 @@ package com.sharjeel.wtmp
 
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -110,14 +109,11 @@ class MainActivity : FragmentActivity() {
 
         biometricPrompt.authenticate(promptInfo)
     }
-
-    // Helper method to safely uninstall WTMP app
     fun uninstallApp() {
-        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        val adminComponent = ComponentName(this, AdminReceiver::class.java) // Aapka DeviceAdminReceiver Class Name
-
+        val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val adminComponent = ComponentName(this, AdminReceiver::class.java)
         if (dpm.isAdminActive(adminComponent)) {
-            dpm.removeActiveAdmin(adminComponent) // Programmatically Remove Device Admin
+            dpm.removeActiveAdmin(adminComponent)
         }
 
         val intent = Intent(Intent.ACTION_DELETE).apply {

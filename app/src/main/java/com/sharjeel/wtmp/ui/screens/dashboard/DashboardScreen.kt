@@ -7,67 +7,19 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Pattern
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,10 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sharjeel.wtmp.R
-import com.sharjeel.wtmp.model.AppUsageInfo
-import com.sharjeel.wtmp.model.EventSeverity
-import com.sharjeel.wtmp.model.SecurityEvent
-import com.sharjeel.wtmp.model.SecurityEventType
+import com.sharjeel.wtmp.model.*
 import com.sharjeel.wtmp.service.AdminReceiver
 import com.sharjeel.wtmp.ui.theme.AvatarColors
 import com.sharjeel.wtmp.ui.theme.WTMPTheme
@@ -114,6 +63,7 @@ fun DashboardScreen(
         onTimeIntervalSelected = viewModel::setTimeInterval,
         onReportTypeToggled = viewModel::toggleReportType,
         onResetFilters = viewModel::resetFilters,
+        onGenerateCustomReport = viewModel::generateCustomAiReport,
         onNavigateToEventDetails = onNavigateToEventDetails,
         onNavigateToSettings = onNavigateToSettings
     )
@@ -127,10 +77,12 @@ fun DashboardScreenContent(
     onTimeIntervalSelected: (TimeInterval) -> Unit,
     onReportTypeToggled: (ReportType) -> Unit,
     onResetFilters: () -> Unit,
+    onGenerateCustomReport: (String) -> Unit,
     onNavigateToEventDetails: (String) -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showAiReportDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -174,23 +126,42 @@ fun DashboardScreenContent(
                         )
                     }
                 },
-                navigationIcon = {},
                 actions = {
-                    IconButton(onClick = { showFilterSheet = true }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.filter_filtering_icon),
-                            contentDescription = "Filter",
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.setting_icon),
-                            modifier = Modifier.size(24.dp),
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
+                    Row(
+                        modifier = Modifier.padding(end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = { showAiReportDialog = true },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "AI Report",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                        
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.filter_filtering_icon),
+                                contentDescription = "Filter",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                        
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.setting_icon),
+                                modifier = Modifier.size(24.dp),
+                                contentDescription = "Settings",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -200,74 +171,89 @@ fun DashboardScreenContent(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding),
+            contentPadding = PaddingValues(bottom = 24.dp + navBarPadding)
         ) {
-            SecurityHeroCard(
-                isActive = uiState.isProtectionActive,
-                onToggle = {
-                    if (!uiState.isProtectionActive) {
-                        if (PermissionUtils.hasAllPermissions(context) && PermissionUtils.isAdminActive(context)) {
-                            onToggleProtection()
-                        } else {
-                            if (!PermissionUtils.isAdminActive(context)) {
-                                Toast.makeText(context, "Activate Device Admin to detect failed unlocks", Toast.LENGTH_LONG).show()
-                                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-                                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, ComponentName(context, AdminReceiver::class.java))
-                                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to monitor failed unlock attempts.")
-                                }
-                                context.startActivity(intent)
-                            } else if (!PermissionUtils.hasUsageStatsPermission(context)) {
-                                Toast.makeText(context, "Grant Usage Access to track apps", Toast.LENGTH_LONG).show()
-                                context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            item {
+                SecurityHeroCard(
+                    isActive = uiState.isProtectionActive,
+                    onToggle = {
+                        if (!uiState.isProtectionActive) {
+                            if (PermissionUtils.hasAllPermissions(context) && PermissionUtils.isAdminActive(context)) {
+                                onToggleProtection()
                             } else {
-                                permissionLauncher.launch(PermissionUtils.getRequiredPermissions())
+                                if (!PermissionUtils.isAdminActive(context)) {
+                                    Toast.makeText(context, "Activate Device Admin to detect failed unlocks", Toast.LENGTH_LONG).show()
+                                    val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                        putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, ComponentName(context, AdminReceiver::class.java))
+                                        putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to monitor failed unlock attempts.")
+                                    }
+                                    context.startActivity(intent)
+                                } else if (!PermissionUtils.hasUsageStatsPermission(context)) {
+                                    Toast.makeText(context, "Grant Usage Access to track apps", Toast.LENGTH_LONG).show()
+                                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                } else {
+                                    permissionLauncher.launch(PermissionUtils.getRequiredPermissions())
+                                }
                             }
+                        } else {
+                            onToggleProtection()
                         }
-                    } else {
-                        onToggleProtection()
+                    }
+                )
+            }
+
+            if (uiState.customReport != null) {
+                item {
+                    CustomAiReportCard(report = uiState.customReport)
+                }
+            } else if (uiState.isAiLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF8B5CF6))
                     }
                 }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Security Reports",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+            }
 
-                if (uiState.events.isNotEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "${uiState.events.size} items",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
+                        text = "Security Reports",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
+
+                    if (uiState.events.isNotEmpty()) {
+                        Text(
+                            text = "${uiState.events.size} items",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
             if (uiState.events.isEmpty() && !uiState.isLoading) {
-                EmptyState()
+                item {
+                    EmptyState()
+                }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 24.dp + navBarPadding)
-                ) {
-                    items(uiState.events) { event ->
-                        EventItem(
-                            event = event,
-                            onClick = { onNavigateToEventDetails(event.id) }
-                        )
-                    }
+                items(uiState.events) { event ->
+                    EventItem(
+                        event = event,
+                        onClick = { onNavigateToEventDetails(event.id) }
+                    )
                 }
             }
         }
@@ -282,6 +268,187 @@ fun DashboardScreenContent(
             onResetFilters = onResetFilters,
             onDismiss = { showFilterSheet = false }
         )
+    }
+
+    if (showAiReportDialog) {
+        AiPromptDialog(
+            onDismiss = { showAiReportDialog = false },
+            onConfirm = { prompt ->
+                onGenerateCustomReport(prompt)
+                showAiReportDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun AiPromptDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var prompt by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = Color(0xFF8B5CF6)
+            )
+        },
+        title = {
+            Text(
+                "AI Security Audit",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Describe what you'd like the AI to investigate in your security history.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    placeholder = { Text("e.g. Check for night-time unlock attempts") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF8B5CF6),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
+                    maxLines = 3
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(prompt) },
+                enabled = prompt.isNotBlank(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+            ) {
+                Text("Generate Report")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun CustomAiReportCard(report: AiSecurityReport) {
+    val isDark = isSystemInDarkTheme()
+    val bgColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(
+            width = 1.2.dp,
+            brush = Brush.linearGradient(
+                listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6).copy(alpha = 0.4f))
+            )
+        )
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.size(42.dp),
+                    shape = CircleShape,
+                    color = Color(0xFF8B5CF6).copy(alpha = 0.1f),
+                    border = BorderStroke(0.5.dp, Color(0xFF8B5CF6).copy(alpha = 0.3f))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color(0xFF8B5CF6),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = report.reportTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = textColor
+                    )
+                    Text(
+                        text = "AI Security Intelligence",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF8B5CF6),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+                
+                Surface(
+                    color = Color(0xFF8B5CF6),
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Text(
+                        text = "${report.securityScore}%",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(18.dp))
+            
+            Text(
+                text = report.summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = textColor.copy(alpha = 0.9f),
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Medium
+            )
+            
+            if (report.detailedInsights.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(color = textColor.copy(alpha = 0.1f), thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                report.detailedInsights.forEach { insight ->
+                    Row(
+                        modifier = Modifier.padding(vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.four_squares_icon),
+                            contentDescription = null,
+                            tint = Color(0xFF8B5CF6).copy(alpha = 0.7f),
+                            modifier = Modifier.size(8.dp).padding(top = 6.dp)
+                        )
+                        Text(
+                            text = insight,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = textColor.copy(alpha = 0.75f),
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -315,6 +482,7 @@ fun DashboardScreenPreview() {
             onTimeIntervalSelected = {},
             onReportTypeToggled = {},
             onResetFilters = {},
+            onGenerateCustomReport = {},
             onNavigateToEventDetails = {},
             onNavigateToSettings = {}
         )
@@ -609,7 +777,7 @@ fun EventItem(
 fun EmptyState() {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -692,7 +860,7 @@ fun FilterBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(weight = 1f, fill = false)
-                    .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

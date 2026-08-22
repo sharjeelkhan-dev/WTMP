@@ -81,9 +81,9 @@ fun HistoryScreen(
             LargeTopAppBar(
                 title = { 
                     Text(
-                        "Event History", 
-                        fontWeight = FontWeight.Bold 
-                    ) 
+                        "Event History",
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
