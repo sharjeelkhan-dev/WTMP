@@ -26,7 +26,7 @@
   <tr>
     <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/a820e847-e7dd-4a97-aa9a-b1bd1e89b565" width="100%" alt="Screen 4 - AI Threat Analysis" /></td>
     <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/52b18a56-70ba-42ac-b13f-f34078804116" width="100%" alt="Screen 5 - Captured Media Gallery" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/e7caa7f0-e93d-442d-959b-1542bd333348" width="100%" alt="Screen 6 - App Settings & Security" /></td>
+    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/f4f922a3-4990-473f-a318-665839226def" width="100%" alt="Screen 6 - App Settings & Security" /></td>
  </tr>
  
 </table>
