@@ -203,7 +203,8 @@ class MainActivity : FragmentActivity() {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+                    or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
             .build()
 
         biometricPrompt.authenticate(promptInfo)
