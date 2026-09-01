@@ -59,7 +59,7 @@ class AntiTheftService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d("AntiTheftService", "Service Connected")
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         val filter = IntentFilter(ACTION_AUTHENTICATED)
         ContextCompat.registerReceiver(
@@ -209,7 +209,7 @@ class AntiTheftService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try { unregisterReceiver(authReceiver) } catch (e: Exception) {}
+        try { unregisterReceiver(authReceiver) } catch (_: Exception) {}
         removeLockOverlay()
         serviceScope.cancel()
     }

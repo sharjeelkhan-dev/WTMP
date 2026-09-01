@@ -150,13 +150,13 @@ class MainActivity : FragmentActivity() {
         if (isAntiTheftTrigger) {
             try {
                 startLockTask()
-            } catch (e: Exception) {}
+            } catch (_: Exception) {}
 
             showBiometricPrompt("Anti-Theft Protection", "Confirm identity to access device options") { success ->
                 if (success) {
                     try {
                         stopLockTask()
-                    } catch (e: Exception) {}
+                    } catch (_: Exception) {}
 
                     sendBroadcast(Intent(AntiTheftService.ACTION_AUTHENTICATED).apply {
                         setPackage(packageName)
