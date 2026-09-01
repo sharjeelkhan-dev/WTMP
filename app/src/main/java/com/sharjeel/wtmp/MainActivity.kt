@@ -65,23 +65,6 @@ class MainActivity : FragmentActivity() {
 
         lifecycleScope.launch {
             val isBiometricEnabled = userPreferencesRepository.isBiometricEnabled.first()
-            val isAntiTheftEnabled = userPreferencesRepository.isAntiTheftEnabled.first()
-
-            // Handle Kiosk Mode (Lock Task) for Anti-Theft
-            if (isAntiTheftEnabled && isAntiTheftTrigger) {
-                try {
-                    val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
-                    if (dpm.isDeviceOwnerApp(packageName)) {
-                        dpm.setLockTaskPackages(
-                            ComponentName(this@MainActivity, AntiTheftAdminReceiver::class.java),
-                            arrayOf(packageName)
-                        )
-                    }
-                    startLockTask()
-                } catch (e: Exception) {
-                    Log.e("MainActivity", "Failed to start Lock Task Mode", e)
-                }
-            }
 
             if (isBiometricEnabled || isAntiTheftTrigger) {
                 val title = if (isAntiTheftTrigger) "Anti-Theft Protection" else "Biometric Login"
@@ -92,10 +75,6 @@ class MainActivity : FragmentActivity() {
                         isAuthenticated = true
 
                         if (isAntiTheftTrigger) {
-                            try {
-                                stopLockTask()
-                            } catch (_: Exception) {}
-
                             // Broadcast success to AntiTheftService
                             sendBroadcast(Intent(AntiTheftService.ACTION_AUTHENTICATED).apply {
                                 setPackage(packageName)
@@ -148,16 +127,8 @@ class MainActivity : FragmentActivity() {
         setIntent(intent)
         val isAntiTheftTrigger = intent.getBooleanExtra("TRIGGER_ANTI_THEFT_LOCK", false)
         if (isAntiTheftTrigger) {
-            try {
-                startLockTask()
-            } catch (_: Exception) {}
-
             showBiometricPrompt("Anti-Theft Protection", "Confirm identity to access device options") { success ->
                 if (success) {
-                    try {
-                        stopLockTask()
-                    } catch (_: Exception) {}
-
                     sendBroadcast(Intent(AntiTheftService.ACTION_AUTHENTICATED).apply {
                         setPackage(packageName)
                     })
@@ -203,7 +174,7 @@ class MainActivity : FragmentActivity() {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG 
                     or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
             .build()
 

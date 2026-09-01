@@ -42,6 +42,9 @@ class AntiTheftService : AccessibilityService() {
 
     @Volatile
     private var isBypassingInterception = false
+    
+    @Volatile
+    private var isBiometricCheckActive = false
 
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
@@ -50,7 +53,8 @@ class AntiTheftService : AccessibilityService() {
     private val authReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_AUTHENTICATED) {
-                Log.d("AntiTheftService", "User Authenticated -> Triggering Native Power Dialog")
+                Log.d("AntiTheftService", "User Authenticated -> Releasing Lock")
+                isBiometricCheckActive = false
                 showSystemPowerMenu()
             }
         }
@@ -79,14 +83,27 @@ class AntiTheftService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (!isAntiTheftActive || isOverlayShowing || isBypassingInterception) return
+        if (!isAntiTheftActive) return
+        
+        // 1. Silent Kiosk: Block Back, Home, and Recents while biometric prompt is showing
+        if (isBiometricCheckActive && event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val packageName = event.packageName?.toString() ?: ""
+            if (packageName != "com.sharjeel.wtmp") {
+                // If intruder tries to swipe home or switch apps, force them back
+                launchLockScreenActivity()
+            }
+        }
 
+        if (isOverlayShowing || isBypassingInterception) return
+
+        // 2. Intercept Power Menu
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val packageName = event.packageName?.toString() ?: ""
             val className = event.className?.toString() ?: ""
 
             if (isSystemPowerMenu(packageName, className)) {
-                Log.d("AntiTheftService", "Power Menu Detected: $packageName / $className")
+                Log.d("AntiTheftService", "Power Menu Intercepted!")
+                isBiometricCheckActive = true
                 dismissSystemPowerDialog()
                 showTouchShieldAndLock()
             }
@@ -116,12 +133,11 @@ class AntiTheftService : AccessibilityService() {
     }
 
     private fun dismissSystemPowerDialog() {
-        // Multi-level dismiss: Power menu ko dismiss karne ke liye different methods try hote hain
+        // Dismiss the system power dialog instantly
         performGlobalAction(GLOBAL_ACTION_BACK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
         }
-        // Force dismiss power dialog on some Samsung devices
         performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
@@ -209,7 +225,7 @@ class AntiTheftService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try { unregisterReceiver(authReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(authReceiver) } catch (e: Exception) {}
         removeLockOverlay()
         serviceScope.cancel()
     }
