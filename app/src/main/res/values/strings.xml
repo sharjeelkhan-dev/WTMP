@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">WTMP</string>
+    <string name="accessibility_description">Used for Anti-Theft protection to prevent unauthorized device shutdown.</string>
 </resources>

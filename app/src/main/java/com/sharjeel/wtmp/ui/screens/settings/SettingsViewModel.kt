@@ -18,6 +18,7 @@ data class SettingsUiState(
     val autoDeletePeriod: Int = 30,
     val isAlarmEnabled: Boolean = true,
     val isVibrationEnabled: Boolean = true,
+    val isAntiTheftEnabled: Boolean = false,
     val isLoading: Boolean = false
 )
 
@@ -32,7 +33,8 @@ class SettingsViewModel @Inject constructor(
         repository.detectionSensitivity,
         repository.autoDeletePeriod,
         repository.isAlarmEnabled,
-        repository.isVibrationEnabled
+        repository.isVibrationEnabled,
+        repository.isAntiTheftEnabled
     ) { flows: Array<Any?> ->
         SettingsUiState(
             themeMode = flows[0] as String,
@@ -41,6 +43,7 @@ class SettingsViewModel @Inject constructor(
             autoDeletePeriod = flows[3] as Int,
             isAlarmEnabled = flows[4] as Boolean,
             isVibrationEnabled = flows[5] as Boolean,
+            isAntiTheftEnabled = flows[6] as Boolean,
             isLoading = false
         )
     }.stateIn(
@@ -82,6 +85,12 @@ class SettingsViewModel @Inject constructor(
     fun updateVibration(enabled: Boolean) {
         viewModelScope.launch {
             repository.setVibrationEnabled(enabled)
+        }
+    }
+
+    fun updateAntiTheft(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.setAntiTheftEnabled(enabled)
         }
     }
 

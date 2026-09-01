@@ -94,6 +94,15 @@ fun SettingsScreen(
         onAutoDeleteChange = viewModel::updateAutoDeletePeriod,
         onAlarmToggle = viewModel::updateAlarm,
         onVibrationToggle = viewModel::updateVibration,
+        onAntiTheftToggle = { enabled ->
+            if (enabled) {
+                // Guide to Accessibility Settings
+                Toast.makeText(context, "Please enable WTMP Anti-Theft in Accessibility Settings", Toast.LENGTH_LONG).show()
+                val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                context.startActivity(intent)
+            }
+            viewModel.updateAntiTheft(enabled)
+        },
         onClearData = viewModel::clearData,
         onUninstallApp = {
             val packageName = context.packageName
@@ -135,6 +144,7 @@ fun SettingsContent(
     onAutoDeleteChange: (Int) -> Unit = {},
     onAlarmToggle: (Boolean) -> Unit = {},
     onVibrationToggle: (Boolean) -> Unit = {},
+    onAntiTheftToggle: (Boolean) -> Unit = {},
     onClearData: () -> Unit = {},
     onUninstallApp: () -> Unit = {}
 ) {
@@ -214,6 +224,24 @@ fun SettingsContent(
                         title = "Biometric Lock",
                         checked = uiState.isBiometricEnabled,
                         onCheckedChange = onBiometricToggle
+                    )
+                }
+            }
+
+            item {
+                SettingsSection("Anti-Theft") {
+                    SettingsItemWithSwitch(
+                        icon = Icons.Default.Lock,
+                        title = "Anti-Power Off",
+                        checked = uiState.isAntiTheftEnabled,
+                        onCheckedChange = onAntiTheftToggle
+                    )
+                    SettingsDivider()
+                    Text(
+                        text = "Intercepts clicks on 'Power off' or 'Restart' and forces biometric authentication, just like on high-end secure devices.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(16.dp)
                     )
                 }
             }

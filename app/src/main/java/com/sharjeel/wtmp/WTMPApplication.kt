@@ -15,18 +15,17 @@ class WTMPApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        val isDebuggable = (0 != (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE))
-        if (isDebuggable) {
-            try {
-                Firebase.initialize(context = this)
-                if (FirebaseApp.getApps(this).isNotEmpty()) {
-                    Firebase.appCheck.installAppCheckProviderFactory(
-                        DebugAppCheckProviderFactory.getInstance(),
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("WTMP", "Firebase initialization failed. Did you add google-services.json?", e)
+        try {
+            Firebase.initialize(context = this)
+            
+            val isDebuggable = (0 != (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE))
+            if (isDebuggable && FirebaseApp.getApps(this).isNotEmpty()) {
+                Firebase.appCheck.installAppCheckProviderFactory(
+                    DebugAppCheckProviderFactory.getInstance(),
+                )
             }
+        } catch (e: Exception) {
+            Log.e("WTMP", "Firebase initialization failed. Did you add google-services.json?", e)
         }
     }
 }

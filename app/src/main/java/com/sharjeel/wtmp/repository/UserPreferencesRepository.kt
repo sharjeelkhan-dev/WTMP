@@ -24,6 +24,7 @@ class UserPreferencesRepository @Inject constructor(
         val AUTO_DELETE_PERIOD = intPreferencesKey("auto_delete_period")
         val IS_ALARM_ENABLED = booleanPreferencesKey("is_alarm_enabled")
         val IS_VIBRATION_ENABLED = booleanPreferencesKey("is_vibration_enabled")
+        val IS_ANTI_THEFT_ENABLED = booleanPreferencesKey("is_anti_theft_enabled")
     }
 
     // Onboarding
@@ -62,6 +63,10 @@ class UserPreferencesRepository @Inject constructor(
         preferences[PreferencesKeys.IS_VIBRATION_ENABLED] ?: true
     }
 
+    val isAntiTheftEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.IS_ANTI_THEFT_ENABLED] ?: false
+    }
+
     // Settings Updaters
     suspend fun setThemeMode(mode: String) {
         dataStore.edit { preferences ->
@@ -96,6 +101,12 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setVibrationEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.IS_VIBRATION_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setAntiTheftEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.IS_ANTI_THEFT_ENABLED] = enabled
         }
     }
 }

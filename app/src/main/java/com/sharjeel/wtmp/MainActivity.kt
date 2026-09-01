@@ -3,7 +3,10 @@ package com.sharjeel.wtmp
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +24,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.sharjeel.wtmp.repository.UserPreferencesRepository
 import com.sharjeel.wtmp.service.AdminReceiver
+import com.sharjeel.wtmp.service.AntiTheftAdminReceiver
+import com.sharjeel.wtmp.service.AntiTheftService
 import com.sharjeel.wtmp.ui.navigation.NavGraph
 import com.sharjeel.wtmp.ui.screens.settings.SettingsViewModel
 import com.sharjeel.wtmp.ui.theme.WTMPTheme
@@ -39,19 +44,77 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // CRITICAL: Allow this activity to appear over the system lock screen
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            )
+        }
+
         enableEdgeToEdge()
 
+        val isAntiTheftTrigger = intent.getBooleanExtra("TRIGGER_ANTI_THEFT_LOCK", false)
         var isAuthenticated by mutableStateOf(false)
 
         lifecycleScope.launch {
             val isBiometricEnabled = userPreferencesRepository.isBiometricEnabled.first()
+            val isAntiTheftEnabled = userPreferencesRepository.isAntiTheftEnabled.first()
 
-            if (isBiometricEnabled) {
-                showBiometricPrompt { success ->
+            // Handle Kiosk Mode (Lock Task) for Anti-Theft
+            if (isAntiTheftEnabled && isAntiTheftTrigger) {
+                try {
+                    val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                    if (dpm.isDeviceOwnerApp(packageName)) {
+                        dpm.setLockTaskPackages(
+                            ComponentName(this@MainActivity, AntiTheftAdminReceiver::class.java),
+                            arrayOf(packageName)
+                        )
+                    }
+                    startLockTask()
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Failed to start Lock Task Mode", e)
+                }
+            }
+
+            if (isBiometricEnabled || isAntiTheftTrigger) {
+                val title = if (isAntiTheftTrigger) "Anti-Theft Protection" else "Biometric Login"
+                val subtitle = if (isAntiTheftTrigger) "Confirm identity to access device options" else "Log in using your biometric credential"
+
+                showBiometricPrompt(title, subtitle) { success ->
                     if (success) {
                         isAuthenticated = true
+
+                        if (isAntiTheftTrigger) {
+                            try {
+                                stopLockTask()
+                            } catch (_: Exception) {}
+
+                            // Broadcast success to AntiTheftService
+                            sendBroadcast(Intent(AntiTheftService.ACTION_AUTHENTICATED).apply {
+                                setPackage(packageName)
+                            })
+
+                            // Clear activity so power menu can show
+                            finishAndRemoveTask()
+                        }
                     } else {
-                        finish()
+                        if (isAntiTheftTrigger) {
+                            val startMain = Intent(Intent.ACTION_MAIN).apply {
+                                addCategory(Intent.CATEGORY_HOME)
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(startMain)
+                            finish()
+                        } else {
+                            finish()
+                        }
                     }
                 }
             } else {
@@ -80,7 +143,43 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun showBiometricPrompt(onResult: (Boolean) -> Unit) {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val isAntiTheftTrigger = intent.getBooleanExtra("TRIGGER_ANTI_THEFT_LOCK", false)
+        if (isAntiTheftTrigger) {
+            try {
+                startLockTask()
+            } catch (e: Exception) {}
+
+            showBiometricPrompt("Anti-Theft Protection", "Confirm identity to access device options") { success ->
+                if (success) {
+                    try {
+                        stopLockTask()
+                    } catch (e: Exception) {}
+
+                    sendBroadcast(Intent(AntiTheftService.ACTION_AUTHENTICATED).apply {
+                        setPackage(packageName)
+                    })
+
+                    finishAndRemoveTask()
+                } else {
+                    val startMain = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_HOME)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    startActivity(startMain)
+                    finish()
+                }
+            }
+        }
+    }
+
+    private fun showBiometricPrompt(
+        title: String = "Biometric Login",
+        subtitle: String = "Log in using your biometric credential",
+        onResult: (Boolean) -> Unit
+    ) {
         val executor = ContextCompat.getMainExecutor(this)
         val biometricPrompt = BiometricPrompt(this, executor,
             object : BiometricPrompt.AuthenticationCallback() {
@@ -102,13 +201,14 @@ class MainActivity : FragmentActivity() {
             })
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Biometric Login")
-            .setSubtitle("Log in using your biometric credential")
-            .setNegativeButtonText("Cancel")
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
             .build()
 
         biometricPrompt.authenticate(promptInfo)
     }
+
     fun uninstallApp() {
         val dpm = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
         val adminComponent = ComponentName(this, AdminReceiver::class.java)

@@ -20,6 +20,7 @@ interface SecurityRepository {
     val autoDeletePeriod: Flow<Int>
     val isAlarmEnabled: Flow<Boolean>
     val isVibrationEnabled: Flow<Boolean>
+    val isAntiTheftEnabled: Flow<Boolean>
 
     suspend fun setFirstTime(isFirstTime: Boolean)
     suspend fun setThemeMode(mode: String)
@@ -29,4 +30,5 @@ interface SecurityRepository {
     suspend fun setAutoDeletePeriod(days: Int)
     suspend fun setAlarmEnabled(enabled: Boolean)
     suspend fun setVibrationEnabled(enabled: Boolean)
+    suspend fun setAntiTheftEnabled(enabled: Boolean)
 }

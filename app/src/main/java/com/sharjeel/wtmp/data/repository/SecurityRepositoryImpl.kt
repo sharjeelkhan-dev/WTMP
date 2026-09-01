@@ -45,6 +45,7 @@ class SecurityRepositoryImpl @Inject constructor(
     override val autoDeletePeriod: Flow<Int> = userPreferencesRepository.autoDeletePeriod
     override val isAlarmEnabled: Flow<Boolean> = userPreferencesRepository.isAlarmEnabled
     override val isVibrationEnabled: Flow<Boolean> = userPreferencesRepository.isVibrationEnabled
+    override val isAntiTheftEnabled: Flow<Boolean> = userPreferencesRepository.isAntiTheftEnabled
 
     override val isProtectionActive: Flow<Boolean> = userPreferencesRepository.isBiometricEnabled
 
@@ -56,6 +57,7 @@ class SecurityRepositoryImpl @Inject constructor(
     override suspend fun setAutoDeletePeriod(days: Int) = userPreferencesRepository.setAutoDeletePeriod(days)
     override suspend fun setAlarmEnabled(enabled: Boolean) = userPreferencesRepository.setAlarmEnabled(enabled)
     override suspend fun setVibrationEnabled(enabled: Boolean) = userPreferencesRepository.setVibrationEnabled(enabled)
+    override suspend fun setAntiTheftEnabled(enabled: Boolean) = userPreferencesRepository.setAntiTheftEnabled(enabled)
 
     // Mappers
     private fun SecurityEventEntity.toDomain(): SecurityEvent {
