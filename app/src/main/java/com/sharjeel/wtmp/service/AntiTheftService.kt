@@ -236,7 +236,7 @@ class AntiTheftService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try { unregisterReceiver(authReceiver) } catch (e: Exception) {}
+        try { unregisterReceiver(authReceiver) } catch (_: Exception) {}
         removeLockOverlay()
         serviceScope.cancel()
     }

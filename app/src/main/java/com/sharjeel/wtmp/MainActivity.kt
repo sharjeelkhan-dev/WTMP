@@ -5,7 +5,6 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -24,7 +23,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.sharjeel.wtmp.repository.UserPreferencesRepository
 import com.sharjeel.wtmp.service.AdminReceiver
-import com.sharjeel.wtmp.service.AntiTheftAdminReceiver
 import com.sharjeel.wtmp.service.AntiTheftService
 import com.sharjeel.wtmp.ui.navigation.NavGraph
 import com.sharjeel.wtmp.ui.screens.settings.SettingsViewModel
