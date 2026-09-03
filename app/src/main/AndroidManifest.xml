@@ -12,6 +12,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
+    <!-- Added permissions for instant overlay display and system dialog suppression -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -24,8 +28,8 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/webcam_icon"
-        android:roundIcon="@drawable/webcam_icon"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.WTMP">
@@ -33,6 +37,9 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:theme="@style/Theme.WTMP"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -67,7 +74,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Added Device Owner Receiver for Anti-Theft Power Menu Suppression -->
+        <!-- Device Owner Receiver for Anti-Theft Power Menu Suppression -->
         <receiver
             android:name=".service.AntiTheftAdminReceiver"
             android:description="@string/app_name"

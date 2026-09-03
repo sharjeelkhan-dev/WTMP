@@ -42,9 +42,9 @@ class AntiTheftService : AccessibilityService() {
 
     @Volatile
     private var isBypassingInterception = false
-    
+
     @Volatile
-    private var isBiometricCheckActive = false
+    private var isBiometricCheckInProgress = false
 
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
@@ -52,10 +52,18 @@ class AntiTheftService : AccessibilityService() {
 
     private val authReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_AUTHENTICATED) {
-                Log.d("AntiTheftService", "User Authenticated -> Releasing Lock")
-                isBiometricCheckActive = false
-                showSystemPowerMenu()
+            when (intent?.action) {
+                ACTION_AUTHENTICATED -> {
+                    Log.d("AntiTheftService", "User Authenticated -> Releasing Lock and showing Power Menu")
+                    isBiometricCheckInProgress = false
+                    showSystemPowerMenu()
+                }
+                ACTION_RESET_STATE -> {
+                    Log.d("AntiTheftService", "Anti-Theft State Reset")
+                    isBiometricCheckInProgress = false
+                    isBypassingInterception = false
+                    removeLockOverlay()
+                }
             }
         }
     }
@@ -65,7 +73,10 @@ class AntiTheftService : AccessibilityService() {
         Log.d("AntiTheftService", "Service Connected")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        val filter = IntentFilter(ACTION_AUTHENTICATED)
+        val filter = IntentFilter().apply {
+            addAction(ACTION_AUTHENTICATED)
+            addAction(ACTION_RESET_STATE)
+        }
         ContextCompat.registerReceiver(
             this,
             authReceiver,
@@ -78,32 +89,37 @@ class AntiTheftService : AccessibilityService() {
                 .distinctUntilChanged()
                 .collect { enabled ->
                     isAntiTheftActive = enabled
+                    if (!enabled) {
+                        isBiometricCheckInProgress = false
+                        isBypassingInterception = false
+                    }
                 }
         }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (!isAntiTheftActive) return
-        
-        // 1. Silent Kiosk: Block Back, Home, and Recents while biometric prompt is showing
-        if (isBiometricCheckActive && event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val packageName = event.packageName?.toString() ?: ""
-            if (packageName != "com.sharjeel.wtmp") {
-                // If intruder tries to swipe home or switch apps, force them back
+
+        // 1. Silent Kiosk: Prevent app switching while biometric prompt is active
+        if (isBiometricCheckInProgress && event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val pkg = event.packageName?.toString() ?: ""
+            // Whitelist system UI and our app
+            if (pkg != "com.sharjeel.wtmp" && pkg != "com.android.systemui" && pkg != "android") {
+                Log.d("AntiTheftService", "Blocking app switch to $pkg during auth")
                 launchLockScreenActivity()
             }
         }
 
         if (isOverlayShowing || isBypassingInterception) return
 
-        // 2. Intercept Power Menu
+        // 2. Power Menu Interception
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val packageName = event.packageName?.toString() ?: ""
             val className = event.className?.toString() ?: ""
 
             if (isSystemPowerMenu(packageName, className)) {
                 Log.d("AntiTheftService", "Power Menu Intercepted!")
-                isBiometricCheckActive = true
+                isBiometricCheckInProgress = true
                 dismissSystemPowerDialog()
                 showTouchShieldAndLock()
             }
@@ -114,26 +130,23 @@ class AntiTheftService : AccessibilityService() {
         serviceScope.launch {
             isBypassingInterception = true
             removeLockOverlay()
-            
-            // Wait for MainActivity to fully finish so it doesn't overlap
-            delay(600.milliseconds)
+
+            // Wait for MainActivity to fully finish
+            delay(500.milliseconds)
 
             // Trigger the native system power menu
-            val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
-            } else {
-                false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val success = performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+                Log.d("AntiTheftService", "Power Dialog Action Success: $success")
             }
-            Log.d("AntiTheftService", "Power Dialog Show Success: $success")
 
-            // Keep bypass active for 10 seconds to allow user interaction
+            // Keep bypass active for interaction
             delay(10.seconds)
             isBypassingInterception = false
         }
     }
 
     private fun dismissSystemPowerDialog() {
-        // Dismiss the system power dialog instantly
         performGlobalAction(GLOBAL_ACTION_BACK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
@@ -149,9 +162,9 @@ class AntiTheftService : AccessibilityService() {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED, // Essential for Lock Screen
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.FILL
@@ -167,14 +180,13 @@ class AntiTheftService : AccessibilityService() {
 
             launchLockScreenActivity()
 
-            // Remove overlay quickly to let activity handle input
             serviceScope.launch {
-                delay(300.milliseconds)
+                delay(400.milliseconds)
                 removeLockOverlay()
             }
 
         } catch (e: Exception) {
-            Log.e("AntiTheftService", "Overlay failed", e)
+            Log.e("AntiTheftService", "Shield failed", e)
         }
     }
 
@@ -189,24 +201,23 @@ class AntiTheftService : AccessibilityService() {
     }
 
     private fun isSystemPowerMenu(packageName: String, className: String): Boolean {
-        // Restricted list to prevent false triggers in other apps
+        // High-precision detection to avoid false triggers with other dialogs
         val powerPackages = setOf("android", "com.android.systemui", "com.samsung.android.app.poweroff")
-        
-        val isPowerPackage = powerPackages.contains(packageName)
-        
+        if (!powerPackages.contains(packageName)) return false
+
         val powerClasses = setOf(
             "com.android.server.policy.GlobalActions",
             "com.android.systemui.globalactions.GlobalActionsDialog",
             "com.android.systemui.globalactions.GlobalActionsDialogLite",
             "com.samsung.android.app.poweroff.PowerOffActivity",
+            "com.android.internal.policy.impl.GlobalActions",
             "Shutdown",
             "Restart",
             "PowerUI"
         )
 
-        val isPowerClass = powerClasses.any { className.contains(it, ignoreCase = true) }
-        
-        return isPowerPackage && (isPowerClass || className.contains("Dialog", ignoreCase = true))
+        // Class must be in the list OR explicitly contain Shutdown/Restart
+        return powerClasses.any { className.contains(it, ignoreCase = true) }
     }
 
     private fun launchLockScreenActivity() {
@@ -232,5 +243,6 @@ class AntiTheftService : AccessibilityService() {
 
     companion object {
         const val ACTION_AUTHENTICATED = "com.sharjeel.wtmp.ACTION_AUTHENTICATED"
+        const val ACTION_RESET_STATE = "com.sharjeel.wtmp.ACTION_RESET_STATE"
     }
 }

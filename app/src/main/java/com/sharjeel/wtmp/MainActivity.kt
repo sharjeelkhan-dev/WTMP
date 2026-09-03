@@ -75,16 +75,19 @@ class MainActivity : FragmentActivity() {
                         isAuthenticated = true
 
                         if (isAntiTheftTrigger) {
-                            // Broadcast success to AntiTheftService
+                            // Notify service that user is owner
                             sendBroadcast(Intent(AntiTheftService.ACTION_AUTHENTICATED).apply {
                                 setPackage(packageName)
                             })
-
-                            // Clear activity so power menu can show
                             finishAndRemoveTask()
                         }
                     } else {
                         if (isAntiTheftTrigger) {
+                            // User cancelled or failed auth during power intercept
+                            sendBroadcast(Intent(AntiTheftService.ACTION_RESET_STATE).apply {
+                                setPackage(packageName)
+                            })
+                            
                             val startMain = Intent(Intent.ACTION_MAIN).apply {
                                 addCategory(Intent.CATEGORY_HOME)
                                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -132,9 +135,12 @@ class MainActivity : FragmentActivity() {
                     sendBroadcast(Intent(AntiTheftService.ACTION_AUTHENTICATED).apply {
                         setPackage(packageName)
                     })
-
                     finishAndRemoveTask()
                 } else {
+                    sendBroadcast(Intent(AntiTheftService.ACTION_RESET_STATE).apply {
+                        setPackage(packageName)
+                    })
+                    
                     val startMain = Intent(Intent.ACTION_MAIN).apply {
                         addCategory(Intent.CATEGORY_HOME)
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -156,7 +162,7 @@ class MainActivity : FragmentActivity() {
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
-                    Toast.makeText(applicationContext, "Authentication error: $errString", Toast.LENGTH_SHORT).show()
+                    // If error is cancelled (code 13 or 10), handle it as false result
                     onResult(false)
                 }
 
