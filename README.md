@@ -12,6 +12,7 @@
 | 🔔 **Intrusion Event Monitoring** | Low-overhead Broadcast Receivers and Device Admin APIs listening for screen state changes, wrong PIN/Pattern attempts, and power button interactions. |
 | 🎨 **Material 3 Interface** | Modern, dark-themed UI built entirely with Jetpack Compose, featuring interactive capture timelines, detail view modals, and custom animations. |
 | 🛡️ **Stealth & Protection** | Enhanced security layer featuring App-Lock protection, dynamic notification masking, and PIN protection to prevent unauthorized app termination. |
+| 🎨 **Asset Attribution** | Core system actions, navigation nodes, and modern news channel vector elements curated via [Uxwing](https://uxwing.com/). |
 
 <details>
 <summary><b>✨ View Interface Design (Click to Expand)</b></summary>
