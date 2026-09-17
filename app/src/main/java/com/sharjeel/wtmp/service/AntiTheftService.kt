@@ -29,13 +29,25 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Accessibility Service designed for power menu interception, silent kiosk lockdown,
+ * and touch-shield protection against unauthorized shutdowns.
+ */
 @AndroidEntryPoint
 class AntiTheftService : AccessibilityService() {
+
+    // =================================================================
+    // 1. INJECTED DEPENDENCIES & SCOPES
+    // =================================================================
 
     @Inject
     lateinit var repository: SecurityRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // =================================================================
+    // STATE VARIABLES
+    // =================================================================
 
     @Volatile
     private var isAntiTheftActive = false
@@ -50,16 +62,20 @@ class AntiTheftService : AccessibilityService() {
     private var overlayView: View? = null
     private var isOverlayShowing = false
 
+    // =================================================================
+    // 2. BROADCAST RECEIVER
+    // =================================================================
+
     private val authReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 ACTION_AUTHENTICATED -> {
-                    Log.d("AntiTheftService", "User Authenticated -> Releasing Lock and showing Power Menu")
+                    Log.d(TAG, "User Authenticated -> Releasing Lock and showing Power Menu")
                     isBiometricCheckInProgress = false
                     showSystemPowerMenu()
                 }
                 ACTION_RESET_STATE -> {
-                    Log.d("AntiTheftService", "Anti-Theft State Reset")
+                    Log.d(TAG, "Anti-Theft State Reset")
                     isBiometricCheckInProgress = false
                     isBypassingInterception = false
                     removeLockOverlay()
@@ -68,9 +84,13 @@ class AntiTheftService : AccessibilityService() {
         }
     }
 
+    // =================================================================
+    // 3. SERVICE LIFECYCLE
+    // =================================================================
+
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.d("AntiTheftService", "Service Connected")
+        Log.d(TAG, "Service Connected")
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         val filter = IntentFilter().apply {
@@ -97,6 +117,21 @@ class AntiTheftService : AccessibilityService() {
         }
     }
 
+    override fun onInterrupt() {}
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(authReceiver)
+        } catch (_: Exception) {}
+        removeLockOverlay()
+        serviceScope.cancel()
+    }
+
+    // =================================================================
+    // 4. ACCESSIBILITY EVENT HANDLING
+    // =================================================================
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (!isAntiTheftActive) return
 
@@ -105,7 +140,7 @@ class AntiTheftService : AccessibilityService() {
             val pkg = event.packageName?.toString() ?: ""
             // Whitelist system UI and our app
             if (pkg != "com.sharjeel.wtmp" && pkg != "com.android.systemui" && pkg != "android") {
-                Log.d("AntiTheftService", "Blocking app switch to $pkg during auth")
+                Log.d(TAG, "Blocking app switch to $pkg during auth")
                 launchLockScreenActivity()
             }
         }
@@ -118,13 +153,17 @@ class AntiTheftService : AccessibilityService() {
             val className = event.className?.toString() ?: ""
 
             if (isSystemPowerMenu(packageName, className)) {
-                Log.d("AntiTheftService", "Power Menu Intercepted!")
+                Log.d(TAG, "Power Menu Intercepted!")
                 isBiometricCheckInProgress = true
                 dismissSystemPowerDialog()
                 showTouchShieldAndLock()
             }
         }
     }
+
+    // =================================================================
+    // 5. POWER MENU & OVERLAY OPERATIONS
+    // =================================================================
 
     private fun showSystemPowerMenu() {
         serviceScope.launch {
@@ -137,7 +176,7 @@ class AntiTheftService : AccessibilityService() {
             // Trigger the native system power menu
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val success = performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
-                Log.d("AntiTheftService", "Power Dialog Action Success: $success")
+                Log.d(TAG, "Power Dialog Action Success: $success")
             }
 
             // Keep bypass active for interaction
@@ -163,8 +202,8 @@ class AntiTheftService : AccessibilityService() {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.FILL
@@ -186,7 +225,7 @@ class AntiTheftService : AccessibilityService() {
             }
 
         } catch (e: Exception) {
-            Log.e("AntiTheftService", "Shield failed", e)
+            Log.e(TAG, "Shield failed", e)
         }
     }
 
@@ -199,6 +238,10 @@ class AntiTheftService : AccessibilityService() {
         overlayView = null
         isOverlayShowing = false
     }
+
+    // =================================================================
+    // 6. HELPER METHODS
+    // =================================================================
 
     private fun isSystemPowerMenu(packageName: String, className: String): Boolean {
         // High-precision detection to avoid false triggers with other dialogs
@@ -232,16 +275,12 @@ class AntiTheftService : AccessibilityService() {
         startActivity(intent)
     }
 
-    override fun onInterrupt() {}
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try { unregisterReceiver(authReceiver) } catch (_: Exception) {}
-        removeLockOverlay()
-        serviceScope.cancel()
-    }
+    // =================================================================
+    // 7. CONSTANTS & ACTION KEYS
+    // =================================================================
 
     companion object {
+        private const val TAG = "AntiTheftService"
         const val ACTION_AUTHENTICATED = "com.sharjeel.wtmp.ACTION_AUTHENTICATED"
         const val ACTION_RESET_STATE = "com.sharjeel.wtmp.ACTION_RESET_STATE"
     }
