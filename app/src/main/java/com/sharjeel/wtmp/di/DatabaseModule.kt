@@ -11,9 +11,16 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/**
+ * Hilt Module responsible for providing Room Database instances and Data Access Objects (DAOs).
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    // =================================================================
+    // 1. DATABASE INSTANCE PROVIDER
+    // =================================================================
 
     @Provides
     @Singleton
@@ -28,6 +35,10 @@ object DatabaseModule {
             .fallbackToDestructiveMigration()
             .build()
     }
+
+    // =================================================================
+    // 2. DAO PROVIDERS
+    // =================================================================
 
     @Provides
     @Singleton
