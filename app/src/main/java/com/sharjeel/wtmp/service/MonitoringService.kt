@@ -13,8 +13,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
-import android.hardware.camera2.*
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.TotalCaptureResult
+import android.media.Image
 import android.media.ImageReader
 import android.media.RingtoneManager
 import android.os.Build
@@ -28,6 +35,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.sharjeel.wtmp.R
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
 import com.sharjeel.wtmp.model.AppUsageInfo
 import com.sharjeel.wtmp.model.EventSeverity
@@ -49,14 +57,28 @@ import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Foreground monitoring service handling dynamic unlock receivers, Camera2 silent background captures,
+ * security alert notifications, and post-unlock app usage tracking.
+ */
 @AndroidEntryPoint
 class MonitoringService : LifecycleService() {
+
+    // =================================================================
+    // 1. INJECTED DEPENDENCIES & STATE
+    // =================================================================
 
     @Inject
     lateinit var repository: SecurityRepository
 
     private var isReceiverRegistered = false
-    @Volatile private var isProcessingEvent = false
+
+    @Volatile
+    private var isProcessingEvent = false
+
+    // =================================================================
+    // 2. DYNAMIC BROADCAST RECEIVER
+    // =================================================================
 
     private val securityReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -81,6 +103,10 @@ class MonitoringService : LifecycleService() {
             }
         }
     }
+
+    // =================================================================
+    // 3. SERVICE LIFECYCLE & FOREGROUND SETUP
+    // =================================================================
 
     override fun onCreate() {
         super.onCreate()
@@ -111,6 +137,11 @@ class MonitoringService : LifecycleService() {
 
         observeProtectionStatus()
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        unregisterSecurityReceivers()
+        super.onDestroy()
     }
 
     private fun observeProtectionStatus() {
@@ -181,6 +212,10 @@ class MonitoringService : LifecycleService() {
         }
     }
 
+    // =================================================================
+    // 4. NOTIFICATION CHANNELS & ALERTS
+    // =================================================================
+
     private fun createNotificationChannels() {
         val notificationManager = getSystemService(NotificationManager::class.java)
 
@@ -207,8 +242,8 @@ class MonitoringService : LifecycleService() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("WTMP Security Monitoring Active")
             .setContentText("Listening for device unlock events...")
-            .setSmallIcon(com.sharjeel.wtmp.R.drawable.webcam_icon)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, com.sharjeel.wtmp.R.drawable.webcam_icon))
+            .setSmallIcon(R.drawable.webcam_icon)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.webcam_icon))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
@@ -230,8 +265,8 @@ class MonitoringService : LifecycleService() {
         val alertNotification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setContentTitle("Failed Unlock Attempt Detected")
             .setContentText("Another failed Attempt to unlock the Device")
-            .setSmallIcon(com.sharjeel.wtmp.R.drawable.webcam_icon)
-            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, com.sharjeel.wtmp.R.drawable.webcam_icon))
+            .setSmallIcon(R.drawable.webcam_icon)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.webcam_icon))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
@@ -240,6 +275,10 @@ class MonitoringService : LifecycleService() {
 
         notificationManager.notify((System.currentTimeMillis() % 10000).toInt(), alertNotification)
     }
+
+    // =================================================================
+    // 5. SECURITY EVENT PROCESSING
+    // =================================================================
 
     private fun handleSecurityEvent(isFailedAttempt: Boolean) {
         if (isProcessingEvent) return
@@ -309,6 +348,10 @@ class MonitoringService : LifecycleService() {
         }
     }
 
+    // =================================================================
+    // 6. APP USAGE TRACKING
+    // =================================================================
+
     private suspend fun getLaunchedAppsAfterUnlock(startTime: Long): List<AppUsageInfo> = withContext(Dispatchers.IO) {
         val usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as? UsageStatsManager
             ?: return@withContext emptyList()
@@ -343,6 +386,10 @@ class MonitoringService : LifecycleService() {
         return@withContext appList.distinctBy { it.packageName }
     }
 
+    // =================================================================
+    // 7. CAMERA2 SILENT CAPTURE
+    // =================================================================
+
     @SuppressLint("MissingPermission")
     private suspend fun capturePhotoInternal(): String? = suspendCancellableCoroutine { continuation ->
         try {
@@ -373,7 +420,7 @@ class MonitoringService : LifecycleService() {
             )
 
             imageReader.setOnImageAvailableListener({ reader ->
-                var image: android.media.Image? = null
+                var image: Image? = null
                 try {
                     image = reader.acquireLatestImage()
                     if (image != null) {
@@ -470,6 +517,10 @@ class MonitoringService : LifecycleService() {
         }
     }
 
+    // =================================================================
+    // 8. ALARM & VIBRATION UTILITIES
+    // =================================================================
+
     private fun playAlarm() {
         try {
             val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -496,10 +547,9 @@ class MonitoringService : LifecycleService() {
         }
     }
 
-    override fun onDestroy() {
-        unregisterSecurityReceivers()
-        super.onDestroy()
-    }
+    // =================================================================
+    // CONSTANTS & ACTION KEYS
+    // =================================================================
 
     companion object {
         private const val TAG = "MonitoringService"
@@ -511,6 +561,10 @@ class MonitoringService : LifecycleService() {
         const val ACTION_FAILED_UNLOCK = "com.sharjeel.wtmp.action.FAILED_UNLOCK"
     }
 }
+
+// =================================================================
+// DEVICE ADMIN RECEIVER
+// =================================================================
 
 class AdminReceiver : DeviceAdminReceiver() {
     @Deprecated("Deprecated in Java")
