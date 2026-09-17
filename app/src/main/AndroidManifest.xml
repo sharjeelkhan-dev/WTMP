@@ -2,26 +2,47 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ================================================================= -->
+    <!-- 1. PERMISSIONS                                                    -->
+    <!-- ================================================================= -->
+
+    <!-- Hardware & Camera Permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- System & Notification Permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Foreground Service Permissions (Android 14+ specific) -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE"
         tools:ignore="ForegroundServicesPolicy" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
-    <!-- Added permissions for instant overlay display and system dialog suppression -->
+    <!-- Overlay, System Dialog & Usage Stats Permissions -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- ================================================================= -->
+    <!-- 2. HARDWARE FEATURES                                              -->
+    <!-- ================================================================= -->
 
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
+
     <uses-feature
         android:name="android.hardware.camera.front"
         android:required="false" />
+
+    <!-- ================================================================= -->
+    <!-- 3. APPLICATION CONFIGURATION                                      -->
+    <!-- ================================================================= -->
 
     <application
         android:name=".WTMPApplication"
@@ -29,18 +50,23 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.WTMP">
 
+        <!-- ============================================================= -->
+        <!-- A. ACTIVITIES (User UI Components)                            -->
+        <!-- ============================================================= -->
+
+        <!-- Main Launcher Screen -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:showWhenLocked="true"
-            android:turnScreenOn="true"
             android:theme="@style/Theme.WTMP"
+            android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -48,6 +74,11 @@
             </intent-filter>
         </activity>
 
+        <!-- ============================================================= -->
+        <!-- B. SERVICES (Background Processing & Accessibility)           -->
+        <!-- ============================================================= -->
+
+        <!-- Security Monitoring Service -->
         <service
             android:name=".service.MonitoringService"
             android:enabled="true"
@@ -58,12 +89,30 @@
                 android:value="Security monitoring for unauthorized access detection and evidence capture." />
         </service>
 
+        <!-- Anti-Theft Accessibility Service -->
+        <service
+            android:name=".service.AntiTheftService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- ============================================================= -->
+        <!-- C. BROADCAST RECEIVERS (System Events & Device Admin)        -->
+        <!-- ============================================================= -->
+
+        <!-- Standard Device Admin Receiver -->
         <receiver
             android:name=".service.AdminReceiver"
             android:description="@string/app_name"
+            android:exported="true"
             android:label="@string/app_name"
-            android:permission="android.permission.BIND_DEVICE_ADMIN"
-            android:exported="true">
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data
                 android:name="android.app.device_admin"
                 android:resource="@xml/device_admin_sample" />
@@ -74,13 +123,13 @@
             </intent-filter>
         </receiver>
 
-        <!-- Device Owner Receiver for Anti-Theft Power Menu Suppression -->
+        <!-- Device Owner Receiver (Power Menu Suppression) -->
         <receiver
             android:name=".service.AntiTheftAdminReceiver"
             android:description="@string/app_name"
+            android:exported="true"
             android:label="@string/app_name"
-            android:permission="android.permission.BIND_DEVICE_ADMIN"
-            android:exported="true">
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data
                 android:name="android.app.device_admin"
                 android:resource="@xml/device_admin_sample" />
@@ -89,6 +138,7 @@
             </intent-filter>
         </receiver>
 
+        <!-- Device Boot Receiver -->
         <receiver
             android:name=".service.MonitoringReceiver"
             android:enabled="true"
@@ -97,18 +147,6 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-
-        <service
-            android:name=".service.AntiTheftService"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
 
     </application>
 
