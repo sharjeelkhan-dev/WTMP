@@ -65,6 +65,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// =================================================================
+// 1. MAIN SCREEN ENTRY POINT (Stateful Composable)
+// =================================================================
+
+/**
+ * HistoryScreen displays the security event logs, allows filtering,
+ * shows a shimmer loading animation, and renders an empty state when no logs exist.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
@@ -72,14 +80,17 @@ fun HistoryScreen(
     onNavigateToDetails: (String) -> Unit,
     onBackClick: () -> Unit = {}
 ) {
+    // Collect UI State safely respecting Lifecycle
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Collapsing TopAppBar Scroll Behavior Configuration
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { 
+                title = {
                     Text(
                         "Event History",
                         fontWeight = FontWeight.Bold
@@ -112,7 +123,7 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Filter Chips
+            // 1. Category Filter Chips Bar
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -124,8 +135,8 @@ fun HistoryScreen(
                     FilterChip(
                         selected = uiState.currentFilter == filter,
                         onClick = { viewModel.setFilter(filter) },
-                        label = { 
-                            Text(filter.name.lowercase().replaceFirstChar { char -> char.uppercase() }) 
+                        label = {
+                            Text(filter.name.lowercase().replaceFirstChar { char -> char.uppercase() })
                         },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -136,8 +147,9 @@ fun HistoryScreen(
                 }
             }
 
-            // Events List
+            // 2. Events List Content rendering based on UI State
             if (uiState.isLoading) {
+                // Loading Skeleton View
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp),
@@ -148,8 +160,10 @@ fun HistoryScreen(
                     }
                 }
             } else if (uiState.events.isEmpty()) {
+                // Empty Log Placeholder
                 HistoryEmptyState()
             } else {
+                // Populated Event Timeline
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp)
@@ -167,6 +181,13 @@ fun HistoryScreen(
     }
 }
 
+// =================================================================
+// 2. MODULAR SUB-COMPOSABLES
+// =================================================================
+
+/**
+ * Empty State view displayed when no security logs match the filter.
+ */
 @Composable
 fun HistoryEmptyState() {
     Column(
@@ -199,6 +220,9 @@ fun HistoryEmptyState() {
     }
 }
 
+/**
+ * Shimmer Loading Card animation component for smooth async data fetching UX.
+ */
 @Composable
 fun ShimmerTimelineCard() {
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
@@ -255,13 +279,16 @@ fun ShimmerTimelineCard() {
     }
 }
 
+/**
+ * Item Card component representing individual security events in the list.
+ */
 @Composable
 fun TimelineCard(
     event: SecurityEvent,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault())
+    val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault()) }
     val avatarColor = remember(event.id) { AvatarColors.random() }
 
     ElevatedCard(
@@ -278,6 +305,7 @@ fun TimelineCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Random Gradient Circle Avatar based on Event ID
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -302,6 +330,7 @@ fun TimelineCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            // Title & Formatted Timestamp Column
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = event.type.title,
@@ -316,6 +345,7 @@ fun TimelineCard(
                 )
             }
 
+            // Indicator Icon if image evidence exists
             if (event.evidencePath != null) {
                 Icon(
                     painter = painterResource(id = android.R.drawable.ic_menu_camera),
