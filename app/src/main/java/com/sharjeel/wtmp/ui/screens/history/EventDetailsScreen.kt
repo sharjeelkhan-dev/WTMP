@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -85,20 +86,31 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// =================================================================
+// 1. MAIN SCREEN ENTRY POINT (Stateful Composable)
+// =================================================================
+
+/**
+ * EventDetailsScreen ViewModel se connect ho kar State Flow collect karta hai.
+ * Unidirectional Data Flow (UDF) pattern follow karta hai.
+ */
 @Composable
 fun EventDetailsScreen(
     eventId: String,
     viewModel: EventDetailsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
+    // Collect StateFlows safely respecting Android Lifecycle
     val eventState by viewModel.event.collectAsStateWithLifecycle()
     val aiAnalysis by viewModel.aiAnalysis.collectAsStateWithLifecycle()
     val isAiLoading by viewModel.isAiLoading.collectAsStateWithLifecycle()
 
+    // Trigger initial event data load when eventId changes
     LaunchedEffect(eventId) {
         viewModel.loadEvent(eventId)
     }
 
+    // Pass data down to Stateless Composable
     EventDetailsContent(
         event = eventState,
         aiAnalysis = aiAnalysis,
@@ -110,6 +122,10 @@ fun EventDetailsScreen(
         onNavigateToNext = { viewModel.navigateToNext() }
     )
 }
+
+// =================================================================
+// 2. MAIN CONTENT SCREEN (Stateless Composable for Preview & Test)
+// =================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,10 +139,14 @@ fun EventDetailsContent(
     onNavigateToPrevious: () -> Unit,
     onNavigateToNext: () -> Unit
 ) {
+    // Local Dialog State for Delete Confirmation
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Date Formatters (remembered to avoid re-creating instances on re-composition)
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy - hh:mm:ss a", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("hh:mm:ss a", Locale.getDefault()) }
     val scrollState = rememberScrollState()
+
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
@@ -134,8 +154,10 @@ fun EventDetailsContent(
                 title = { Text("Report Details", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 actions = {
@@ -164,8 +186,13 @@ fun EventDetailsContent(
         ) {
             if (event != null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                EvidenceCard(event.evidencePath)
+
+                // 1. Photo Evidence Display Component
+                EvidenceCard(path = event.evidencePath)
+
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // 2. AI Gemini Vision Analysis Card Component
                 AiForensicsCard(
                     analysis = aiAnalysis,
                     isLoading = isAiLoading,
@@ -174,35 +201,65 @@ fun EventDetailsContent(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Information Card
-                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        InfoRow(Icons.Default.Schedule, "Time", dateFormat.format(Date(event.timestamp)), MaterialTheme.colorScheme.primary)
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                        InfoRow(Icons.Default.Security, "Trigger", event.type.title, MaterialTheme.colorScheme.secondary, badgeText = if (event.deviceState == "Unlock Failed") "Failed" else "Unlocked")
+                // 3. General Event Details (Time, Trigger Status)
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        InfoRow(
+                            icon = Icons.Default.Schedule,
+                            label = "Time",
+                            value = dateFormat.format(Date(event.timestamp)),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        )
+                        InfoRow(
+                            icon = Icons.Default.Security,
+                            label = "Trigger",
+                            value = event.type.title,
+                            color = MaterialTheme.colorScheme.secondary,
+                            badgeText = if (event.deviceState == "Unlock Failed") "Failed" else "Unlocked"
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // 4. List of Apps Opened During Event
                 if (event.accessedApps.isNotEmpty()) {
-                    AppsOpenedCard(event.accessedApps, timeFormat)
+                    AppsOpenedCard(
+                        apps = event.accessedApps,
+                        timeFormat = timeFormat
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // 5. Next/Previous Event Navigation Controls
                 PaginationControls(
                     onPrevious = onNavigateToPrevious,
                     onNext = onNavigateToNext
                 )
             } else {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                // Loading State when Event Object is Null
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
             }
         }
     }
 
+    // Delete Confirmation Dialog Component
     if (showDeleteDialog && event != null) {
         DeleteConfirmDialog(
             onDismiss = { showDeleteDialog = false },
@@ -215,6 +272,13 @@ fun EventDetailsContent(
     }
 }
 
+// =================================================================
+// 3. MODULAR SUB-COMPOSABLES
+// =================================================================
+
+/**
+ * Card component for loading and displaying captured image evidence from local file path.
+ */
 @Composable
 fun EvidenceCard(path: String?) {
     ElevatedCard(
@@ -223,7 +287,10 @@ fun EvidenceCard(path: String?) {
             .aspectRatio(1.2f),
         shape = RoundedCornerShape(28.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             if (!path.isNullOrEmpty()) {
                 AsyncImage(
                     model = File(path),
@@ -233,7 +300,11 @@ fun EvidenceCard(path: String?) {
                 )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(painterResource(id = R.drawable.no_image_photography_icon), contentDescription = null, modifier = Modifier.size(48.dp))
+                    Icon(
+                        painter = painterResource(id = R.drawable.no_image_photography_icon),
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp)
+                    )
                     Text("No Photo Evidence", style = MaterialTheme.typography.bodyMedium)
                 }
             }
@@ -241,6 +312,9 @@ fun EvidenceCard(path: String?) {
     }
 }
 
+/**
+ * Displays AI Vision Forensics analysis (Gemini AI features).
+ */
 @Composable
 fun AiForensicsCard(
     analysis: AiEventAnalysis?,
@@ -262,7 +336,10 @@ fun AiForensicsCard(
             )
         )
     ) {
-        Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(
+            modifier = Modifier.padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     modifier = Modifier.size(36.dp),
@@ -270,31 +347,75 @@ fun AiForensicsCard(
                     color = Color(0xFF8B5CF6).copy(alpha = 0.1f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color(0xFF8B5CF6),
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("AI Visual Forensics", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, color = textColor)
+                Text(
+                    text = "AI Visual Forensics",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = textColor
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 if (analysis != null && !isLoading) {
-                    TextButton(onClick = onAnalyze, contentPadding = PaddingValues(0.dp)) {
-                        Text("Re-analyze", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8B5CF6))
+                    TextButton(
+                        onClick = onAnalyze,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "Re-analyze",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF8B5CF6)
+                        )
                     }
                 }
             }
 
             AnimatedVisibility(visible = analysis != null || isLoading) {
                 if (isLoading) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().clip(CircleShape), color = Color(0xFF8B5CF6))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(CircleShape),
+                            color = Color(0xFF8B5CF6)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Gemini is analyzing intruder features...", style = MaterialTheme.typography.labelSmall, color = textColor.copy(alpha = 0.5f))
+                        Text(
+                            text = "Gemini is analyzing intruder features...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor.copy(alpha = 0.5f)
+                        )
                     }
                 } else if (analysis != null) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.PersonSearch, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(16.dp))
-                            Text("Subject Identification:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = textColor)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PersonSearch,
+                                contentDescription = null,
+                                tint = Color(0xFF8B5CF6),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Subject Identification:",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = textColor
+                            )
                         }
 
                         Text(
@@ -304,7 +425,10 @@ fun AiForensicsCard(
                             lineHeight = 20.sp
                         )
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = textColor.copy(alpha = 0.05f))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = textColor.copy(alpha = 0.05f)
+                        )
 
                         Text(
                             text = "Security Analysis: ${analysis.explanation}",
@@ -323,7 +447,11 @@ fun AiForensicsCard(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
                 ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Identify Intruder with AI", fontWeight = FontWeight.Bold)
                 }
@@ -332,83 +460,214 @@ fun AiForensicsCard(
     }
 }
 
+/**
+ * Generic row component for key-value pair information displays.
+ */
 @Composable
-fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, color: Color, badgeText: String? = null) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(color.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = color)
+fun InfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    color: Color,
+    badgeText: String? = null
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = color
+            )
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+            )
         }
         if (badgeText != null) {
-            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
-                Text(badgeText, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = CircleShape
+            ) {
+                Text(
+                    text = badgeText,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 }
 
+/**
+ * Card wrapper containing list of accessed applications.
+ */
 @Composable
 fun AppsOpenedCard(apps: List<AppUsageInfo>, timeFormat: SimpleDateFormat) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp)
+    ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text("Apps Accessed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Apps Accessed",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(modifier = Modifier.height(12.dp))
             apps.forEachIndexed { index, app ->
                 AppUsageItem(app, timeFormat)
-                if (index < apps.size - 1) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                if (index < apps.size - 1) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * Renders individual application usage detail item fetching system app icon dynamically.
+ */
+@Composable
+fun AppUsageItem(app: AppUsageInfo, timeFormat: SimpleDateFormat) {
+    val context = LocalContext.current
+
+    // Asynchronously retrieve installed application launcher icon using PackageManager
+    val appIcon = remember(app.packageName) {
+        try {
+            context.packageManager.getApplicationIcon(app.packageName).toBitmap().asImageBitmap()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (appIcon != null) {
+            Image(
+                bitmap = appIcon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Android,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = app.appName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = app.packageName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+        }
+        Text(
+            text = timeFormat.format(Date(app.launchedTimestamp)),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+/**
+ * Navigation bar at the bottom for cycling through previous/next report logs.
+ */
 @Composable
 fun PaginationControls(onPrevious: () -> Unit, onNext: () -> Unit) {
-    Surface(shape = RoundedCornerShape(20.dp), tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onPrevious) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onPrevious) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Previous"
+                )
+            }
             Text("Reports", style = MaterialTheme.typography.labelLarge)
-            IconButton(onClick = onNext) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
+            IconButton(onClick = onNext) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Next"
+                )
+            }
         }
     }
 }
 
+/**
+ * Standard Material3 Confirmation Alert Dialog for event deletion.
+ */
 @Composable
 fun DeleteConfirmDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Delete Log?") },
         text = { Text("This action cannot be undone.") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
     )
 }
 
-@Composable
-fun AppUsageItem(app: AppUsageInfo, timeFormat: SimpleDateFormat) {
-    val context = LocalContext.current
-    val appIcon = remember(app.packageName) {
-        try { context.packageManager.getApplicationIcon(app.packageName).toBitmap().asImageBitmap() } catch (_: Exception) { null }
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        if (appIcon != null) {
-            Image(bitmap = appIcon, contentDescription = null, modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
-        } else {
-            Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Android, contentDescription = null, modifier = Modifier.size(20.dp))
-            }
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(app.appName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Text(app.packageName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-        }
-        Text(timeFormat.format(Date(app.launchedTimestamp)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-    }
-}
+// =================================================================
+// 4. JETPACK COMPOSE PREVIEWS (Light & Dark Mode)
+// =================================================================
 
 @Preview(showBackground = true, name = "Light Mode")
 @Composable
