@@ -1,23 +1,31 @@
 package com.sharjeel.wtmp.di
 
+import android.content.Context
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.ai.GenerativeModel
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
-import com.google.firebase.FirebaseApp
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 
+/**
+ * Hilt Module responsible for providing Firebase ecosystem services
+ * (Analytics & AI Generative Models) across the application.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
+
+    // =================================================================
+    // 1. FIREBASE ANALYTICS PROVIDER
+    // =================================================================
 
     @Provides
     @Singleton
@@ -28,6 +36,10 @@ object FirebaseModule {
             null
         }
     }
+
+    // =================================================================
+    // 2. FIREBASE AI / GENERATIVE MODEL PROVIDER
+    // =================================================================
 
     @Provides
     @Singleton
