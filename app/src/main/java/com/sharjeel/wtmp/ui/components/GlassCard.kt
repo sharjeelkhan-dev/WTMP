@@ -12,14 +12,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+/**
+ * Reusable Glassmorphism Card Container.
+ * Applies a semi-transparent background with a subtle vertical gradient border.
+ */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
+    val glassShape = RoundedCornerShape(24.dp)
+
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
+            .clip(glassShape)
             .background(Color.White.copy(alpha = 0.5f))
             .border(
                 width = 1.dp,
@@ -29,9 +35,8 @@ fun GlassCard(
                         Color.White.copy(alpha = 0.05f)
                     )
                 ),
-                shape = RoundedCornerShape(24.dp)
-            )
-    ) {
-        content()
-    }
+                shape = glassShape
+            ),
+        content = content
+    )
 }
