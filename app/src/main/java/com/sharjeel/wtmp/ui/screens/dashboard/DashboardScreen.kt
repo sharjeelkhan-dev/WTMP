@@ -110,6 +110,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// =================================================================
+// 1. STATEFUL DASHBOARD SCREEN ENTRY
+// =================================================================
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -130,6 +134,10 @@ fun DashboardScreen(
         onNavigateToSettings = onNavigateToSettings
     )
 }
+
+// =================================================================
+// 2. STATELESS DASHBOARD CONTENT
+// =================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,9 +176,7 @@ fun DashboardScreenContent(
                     .statusBarsPadding()
                     .padding(horizontal = 8.dp),
                 title = {
-                    Column(
-                        verticalArrangement = Arrangement.Center
-                    ) {
+                    Column(verticalArrangement = Arrangement.Center) {
                         Text(
                             text = uiState.currentDate,
                             style = MaterialTheme.typography.labelMedium,
@@ -196,8 +202,7 @@ fun DashboardScreenContent(
                     ) {
                         IconButton(
                             onClick = { showAiReportDialog = true },
-                            modifier = Modifier
-                                .clip(CircleShape)
+                            modifier = Modifier.clip(CircleShape)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
@@ -206,7 +211,7 @@ fun DashboardScreenContent(
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
-                        
+
                         IconButton(onClick = { showFilterSheet = true }) {
                             Icon(
                                 painter = painterResource(id = R.drawable.filter_filtering_icon),
@@ -215,7 +220,7 @@ fun DashboardScreenContent(
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
-                        
+
                         IconButton(onClick = onNavigateToSettings) {
                             Icon(
                                 painter = painterResource(id = R.drawable.setting_icon),
@@ -274,7 +279,12 @@ fun DashboardScreenContent(
                 }
             } else if (uiState.isAiLoading) {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(color = Color(0xFF8B5CF6))
                     }
                 }
@@ -343,213 +353,9 @@ fun DashboardScreenContent(
     }
 }
 
-@Composable
-fun AiPromptDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var prompt by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.AutoAwesome,
-                contentDescription = null,
-                tint = Color(0xFF8B5CF6)
-            )
-        },
-        title = {
-            Text(
-                "AI Security Audit",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.headlineSmall
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "Describe what you'd like the AI to investigate in your security history.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                OutlinedTextField(
-                    value = prompt,
-                    onValueChange = { prompt = it },
-                    placeholder = { Text("e.g. Check for night-time unlock attempts") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF8B5CF6),
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    ),
-                    maxLines = 3
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(prompt) },
-                enabled = prompt.isNotBlank(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
-            ) {
-                Text("Generate Report")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
-@Composable
-fun CustomAiReportCard(report: AiSecurityReport) {
-    val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        shape = RoundedCornerShape(28.dp),
-        border = BorderStroke(
-            width = 1.2.dp,
-            brush = Brush.linearGradient(
-                listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6).copy(alpha = 0.4f))
-            )
-        )
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.size(42.dp),
-                    shape = CircleShape,
-                    color = Color(0xFF8B5CF6).copy(alpha = 0.1f),
-                    border = BorderStroke(0.5.dp, Color(0xFF8B5CF6).copy(alpha = 0.3f))
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = Color(0xFF8B5CF6),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-                
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = report.reportTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = textColor
-                    )
-                    Text(
-                        text = "AI Security Intelligence",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF8B5CF6),
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-                
-                Surface(
-                    color = Color(0xFF8B5CF6),
-                    shape = RoundedCornerShape(12.dp),
-                    shadowElevation = 4.dp
-                ) {
-                    Text(
-                        text = "${report.securityScore}%",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(18.dp))
-            
-            Text(
-                text = report.summary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = textColor.copy(alpha = 0.9f),
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Medium
-            )
-            
-            if (report.detailedInsights.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(20.dp))
-                HorizontalDivider(color = textColor.copy(alpha = 0.1f), thickness = 0.5.dp)
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                report.detailedInsights.forEach { insight ->
-                    Row(
-                        modifier = Modifier.padding(vertical = 5.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.four_squares_icon),
-                            contentDescription = null,
-                            tint = Color(0xFF8B5CF6).copy(alpha = 0.7f),
-                            modifier = Modifier.size(8.dp).padding(top = 6.dp)
-                        )
-                        Text(
-                            text = insight,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = textColor.copy(alpha = 0.75f),
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DashboardScreenPreview() {
-    WTMPTheme {
-        DashboardScreenContent(
-            uiState = DashboardUiState(
-                isProtectionActive = true,
-                currentDate = "SATURDAY, 18 JULY 2026",
-                events = listOf(
-                    SecurityEvent(
-                        type = SecurityEventType.DEVICE_UNLOCKED,
-                        timestamp = System.currentTimeMillis(),
-                        deviceState = "Device Unlocked",
-                        accessedApps = listOf(
-                            AppUsageInfo("com.android.chrome", "Chrome", launchedTimestamp = System.currentTimeMillis()),
-                            AppUsageInfo("com.google.android.youtube", "YouTube", launchedTimestamp = System.currentTimeMillis())
-                        )
-                    ),
-                    SecurityEvent(
-                        type = SecurityEventType.FAILED_UNLOCK,
-                        timestamp = System.currentTimeMillis() - 3600000,
-                        deviceState = "Unlock Failed",
-                        severity = EventSeverity.HIGH
-                    )
-                )
-            ),
-            onToggleProtection = {},
-            onTimeIntervalSelected = {},
-            onReportTypeToggled = {},
-            onResetFilters = {},
-            onGenerateCustomReport = {},
-            onNavigateToEventDetails = {},
-            onNavigateToSettings = {}
-        )
-    }
-}
+// =================================================================
+// 3. SECURITY HERO CARD & RADAR HEADER
+// =================================================================
 
 @Composable
 fun SecurityHeroCard(
@@ -626,7 +432,9 @@ fun SecurityHeroCard(
                         letterSpacing = 1.sp
                     )
                 }
+
                 Spacer(modifier = Modifier.height(20.dp))
+
                 Surface(
                     onClick = onToggle,
                     shape = CircleShape,
@@ -651,7 +459,6 @@ fun SecurityHeroCard(
 @Composable
 fun ProfessionalSecurityHeader(isActive: Boolean) {
     val infiniteTransition = rememberInfiniteTransition(label = "radarSpin")
-    val colorScheme = MaterialTheme.colorScheme
     val statusColor = if (isActive) SuccessEmerald else AlertRose
 
     val angle by infiniteTransition.animateFloat(
@@ -661,7 +468,8 @@ fun ProfessionalSecurityHeader(isActive: Boolean) {
             animation = tween(3000),
             repeatMode = RepeatMode.Restart
         ),
-        label = "angle")
+        label = "angle"
+    )
 
     Box(
         modifier = Modifier.size(100.dp),
@@ -706,6 +514,190 @@ fun ProfessionalSecurityHeader(isActive: Boolean) {
         }
     }
 }
+
+// =================================================================
+// 4. AI REPORT CARDS & DIALOGS
+// =================================================================
+
+@Composable
+fun CustomAiReportCard(report: AiSecurityReport) {
+    val isDark = isSystemInDarkTheme()
+    val bgColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(
+            width = 1.2.dp,
+            brush = Brush.linearGradient(
+                listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6).copy(alpha = 0.4f))
+            )
+        )
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    modifier = Modifier.size(42.dp),
+                    shape = CircleShape,
+                    color = Color(0xFF8B5CF6).copy(alpha = 0.1f),
+                    border = BorderStroke(0.5.dp, Color(0xFF8B5CF6).copy(alpha = 0.3f))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color(0xFF8B5CF6),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = report.reportTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = textColor
+                    )
+                    Text(
+                        text = "AI Security Intelligence",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF8B5CF6),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                Surface(
+                    color = Color(0xFF8B5CF6),
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Text(
+                        text = "${report.securityScore}%",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = report.summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = textColor.copy(alpha = 0.9f),
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (report.detailedInsights.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(color = textColor.copy(alpha = 0.1f), thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                report.detailedInsights.forEach { insight ->
+                    Row(
+                        modifier = Modifier.padding(vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.four_squares_icon),
+                            contentDescription = null,
+                            tint = Color(0xFF8B5CF6).copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .size(8.dp)
+                                .padding(top = 6.dp)
+                        )
+                        Text(
+                            text = insight,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = textColor.copy(alpha = 0.75f),
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AiPromptDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var prompt by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = Color(0xFF8B5CF6)
+            )
+        },
+        title = {
+            Text(
+                text = "AI Security Audit",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Describe what you'd like the AI to investigate in your security history.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    placeholder = { Text("e.g. Check for night-time unlock attempts") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF8B5CF6),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
+                    maxLines = 3
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(prompt) },
+                enabled = prompt.isNotBlank(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+            ) {
+                Text("Generate Report")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+// =================================================================
+// 5. SECURITY EVENT LIST ITEM & EMPTY STATE
+// =================================================================
 
 @Composable
 fun EventItem(
@@ -865,6 +857,10 @@ fun EmptyState() {
     }
 }
 
+// =================================================================
+// 6. FILTER BOTTOM SHEET
+// =================================================================
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FilterBottomSheet(
@@ -918,6 +914,7 @@ fun FilterBottomSheet(
                     color = contentColor
                 )
             }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1097,5 +1094,46 @@ fun FilterBottomSheet(
                 }
             }
         }
+    }
+}
+
+// =================================================================
+// 7. COMPOSE PREVIEW
+// =================================================================
+
+@Preview(showBackground = true)
+@Composable
+fun DashboardScreenPreview() {
+    WTMPTheme {
+        DashboardScreenContent(
+            uiState = DashboardUiState(
+                isProtectionActive = true,
+                currentDate = "SATURDAY, 18 JULY 2026",
+                events = listOf(
+                    SecurityEvent(
+                        type = SecurityEventType.DEVICE_UNLOCKED,
+                        timestamp = System.currentTimeMillis(),
+                        deviceState = "Device Unlocked",
+                        accessedApps = listOf(
+                            AppUsageInfo("com.android.chrome", "Chrome", launchedTimestamp = System.currentTimeMillis()),
+                            AppUsageInfo("com.google.android.youtube", "YouTube", launchedTimestamp = System.currentTimeMillis())
+                        )
+                    ),
+                    SecurityEvent(
+                        type = SecurityEventType.FAILED_UNLOCK,
+                        timestamp = System.currentTimeMillis() - 3600000,
+                        deviceState = "Unlock Failed",
+                        severity = EventSeverity.HIGH
+                    )
+                )
+            ),
+            onToggleProtection = {},
+            onTimeIntervalSelected = {},
+            onReportTypeToggled = {},
+            onResetFilters = {},
+            onGenerateCustomReport = {},
+            onNavigateToEventDetails = {},
+            onNavigateToSettings = {}
+        )
     }
 }
