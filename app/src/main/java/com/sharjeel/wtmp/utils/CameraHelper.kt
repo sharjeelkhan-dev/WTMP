@@ -14,13 +14,29 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 import kotlin.coroutines.resume
 
+// =================================================================
+// CAMERA HELPER UTILITY (CameraX Evidence Capture)
+// =================================================================
+
+/**
+ * Utility class responsible for managing low-latency front camera operations
+ * and persisting intruder evidence photos to local app storage.
+ */
 class CameraHelper(private val context: Context) {
 
     private var imageCapture: ImageCapture? = null
 
+    // =================================================================
+    // PUBLIC API (PHOTO CAPTURE ENGINE)
+    // =================================================================
+
+    /**
+     * Binds CameraX lifecycle and captures an evidence photo silently using the front camera.
+     * @return Absolute file path of saved photo, or null if permission/binding fails.
+     */
     suspend fun capturePhoto(lifecycleOwner: LifecycleOwner): String? = withContext(Dispatchers.Main) {
         if (!PermissionUtils.hasCameraPermission(context)) {
             Log.e(TAG, "Camera permission missing")
@@ -28,7 +44,7 @@ class CameraHelper(private val context: Context) {
         }
 
         val cameraProvider = getCameraProvider() ?: return@withContext null
-        
+
         imageCapture = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .build()
@@ -50,6 +66,13 @@ class CameraHelper(private val context: Context) {
         takePicture()
     }
 
+    // =================================================================
+    // INTERNAL COROUTINES & CAMERAX CALLBACKS
+    // =================================================================
+
+    /**
+     * Asynchronously retrieves the ProcessCameraProvider instance using suspendCancellableCoroutine.
+     */
     private suspend fun getCameraProvider(): ProcessCameraProvider? = suspendCancellableCoroutine { continuation ->
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
@@ -62,6 +85,9 @@ class CameraHelper(private val context: Context) {
         }, ContextCompat.getMainExecutor(context))
     }
 
+    /**
+     * Executes photo capture flow and saves JPEG image into internal storage evidence directory.
+     */
     private suspend fun takePicture(): String? = suspendCancellableCoroutine { continuation ->
         val imageCapture = imageCapture ?: run {
             continuation.resume(null)
@@ -96,6 +122,10 @@ class CameraHelper(private val context: Context) {
             }
         )
     }
+
+    // =================================================================
+    // CONSTANTS
+    // =================================================================
 
     companion object {
         private const val TAG = "CameraHelper"
