@@ -6,7 +6,15 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.content.ContextCompat
 
+/**
+ * BroadcastReceiver responsible for intercepting system boot triggers and user present events
+ * to restore security monitoring services automatically.
+ */
 class MonitoringReceiver : BroadcastReceiver() {
+
+    // =================================================================
+    // BROADCAST RECEIVER CALLBACK
+    // =================================================================
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -24,6 +32,10 @@ class MonitoringReceiver : BroadcastReceiver() {
             }
         }
     }
+
+    // =================================================================
+    // CONSTANTS & TAG
+    // =================================================================
 
     companion object {
         private const val TAG = "MonitoringReceiver"
