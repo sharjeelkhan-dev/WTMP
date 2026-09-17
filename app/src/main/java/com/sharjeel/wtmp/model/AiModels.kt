@@ -2,6 +2,13 @@ package com.sharjeel.wtmp.model
 
 import kotlinx.serialization.Serializable
 
+// =================================================================
+// 1. EVENT VISION ANALYSIS MODEL
+// =================================================================
+
+/**
+ * Data class representing AI Gemini Vision analysis for a specific security event.
+ */
 @Serializable
 data class AiEventAnalysis(
     val explanation: String,
@@ -11,6 +18,13 @@ data class AiEventAnalysis(
     val intruderDescription: String? = null // For visual description
 )
 
+// =================================================================
+// 2. SECURITY AUDIT REPORT MODEL
+// =================================================================
+
+/**
+ * Data class representing a consolidated AI Security Audit Report.
+ */
 @Serializable
 data class AiSecurityReport(
     val reportTitle: String,
