@@ -1,16 +1,33 @@
 package com.sharjeel.wtmp.ui.screens.splash
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -29,17 +46,27 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
+// =================================================================
+// 1. SPLASH SCREEN COMPOSABLE
+// =================================================================
+
+/**
+ * Animated splash screen featuring staggered element entry, ambient pulsing,
+ * and a smooth scale-out transition before navigating to the Onboarding flow.
+ */
 @Composable
 fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
     val currentOnNavigate by rememberUpdatedState(onNavigationToOnboarding)
     val isDark = isSystemInDarkTheme()
     val colorScheme = MaterialTheme.colorScheme
 
-    // Screen Exit Animation States
+    // --- ANIMATION STATES ---
+
+    // Screen Exit Transition States
     val screenAlpha = remember { Animatable(0f) }
     val screenScale = remember { Animatable(0.92f) }
 
-    // Staggered Animations for Elements
+    // Staggered Component Animations
     val iconScale = remember { Animatable(0.4f) }
     val iconAlpha = remember { Animatable(0f) }
 
@@ -49,13 +76,14 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
     val subtitleAlpha = remember { Animatable(0f) }
     val subtitleOffsetY = remember { Animatable(15f) }
 
-    // Branded Theme Palette
+    // Color Palette Assignments
     val backgroundCol = colorScheme.background
     val cardBackground = colorScheme.surface
     val themePrimary = colorScheme.primary
     val textMain = colorScheme.onBackground
     val textSubtle = colorScheme.onBackground.copy(alpha = 0.7f)
 
+    // Ambient Continuous Background Pulses
     val infiniteTransition = rememberInfiniteTransition(label = "ambient_pulse")
 
     val outerPulseGlow by infiniteTransition.animateFloat(
@@ -78,7 +106,10 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
         label = "innerPulseScale"
     )
 
+    // --- ANIMATION CHOREOGRAPHY ---
+
     LaunchedEffect(Unit) {
+        // Step 1: Screen & Icon Entry
         launch { screenAlpha.animateTo(1f, tween(400)) }
         launch {
             iconAlpha.animateTo(1f, tween(300))
@@ -90,18 +121,29 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                 )
             )
         }
+
+        // Step 2: Main Title Entrance
         delay(350.milliseconds)
         launch { textAlpha.animateTo(1f, tween(400)) }
         launch { textOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing)) }
+
+        // Step 3: Subtitle Entrance
         delay(150.milliseconds)
         launch { subtitleAlpha.animateTo(1f, tween(400)) }
         launch { subtitleOffsetY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing)) }
+
+        // Step 4: Display Hold & Exit Transition
         delay(1500.milliseconds)
         launch { screenAlpha.animateTo(0f, tween(350)) }
         launch { screenScale.animateTo(1.08f, tween(350, easing = FastOutSlowInEasing)) }
+
+        // Step 5: Trigger Navigation Callback
         delay(350.milliseconds)
         currentOnNavigate()
     }
+
+    // --- UI LAYOUT ---
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -113,6 +155,7 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Brand Logo Container with Glowing Radial Ripples
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -120,6 +163,7 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                     .scale(iconScale.value)
                     .alpha(iconAlpha.value)
             ) {
+                // Outer Radial Pulse Glow
                 Box(
                     modifier = Modifier
                         .size(160.dp)
@@ -134,6 +178,8 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                             )
                         )
                 )
+
+                // Inner Soft Radial Accent
                 Box(
                     modifier = Modifier
                         .size(105.dp)
@@ -147,6 +193,8 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                             )
                         )
                 )
+
+                // Glassmorphic App Icon Surface
                 Box(
                     modifier = Modifier
                         .size(88.dp)
@@ -172,6 +220,8 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                     )
                 }
             }
+
+            // Main Brand Title
             Text(
                 text = "WTMP",
                 style = MaterialTheme.typography.headlineLarge.copy(
@@ -184,6 +234,7 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
                     .alpha(textAlpha.value)
             )
 
+            // Application Subtitle
             Text(
                 text = "Who Touched My Phone?",
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -198,6 +249,10 @@ fun SplashScreen(onNavigationToOnboarding: () -> Unit) {
         }
     }
 }
+
+// =================================================================
+// 2. PREVIEW PROVIDERS
+// =================================================================
 
 @Preview(name = "Splash - Dark", showBackground = true)
 @Composable
