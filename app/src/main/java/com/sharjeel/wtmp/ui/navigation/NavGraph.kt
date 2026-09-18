@@ -18,6 +18,10 @@ import com.sharjeel.wtmp.ui.screens.settings.SettingsScreen
 import com.sharjeel.wtmp.ui.screens.splash.SplashScreen
 import com.sharjeel.wtmp.ui.screens.stats.StatsScreen
 
+// =================================================================
+// 1. NAVIGATION DESTINATIONS
+// =================================================================
+
 sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Onboarding : Screen("onboarding")
@@ -31,6 +35,10 @@ sealed class Screen(val route: String) {
     object PrivacyCenter : Screen("privacy_center")
 }
 
+// =================================================================
+// 2. NAV GRAPH CONTROLLER
+// =================================================================
+
 @Composable
 fun NavGraph(
     navController: NavHostController,
@@ -42,34 +50,47 @@ fun NavGraph(
         navController = navController,
         startDestination = Screen.Splash.route
     ) {
+        // Splash Screen
         composable(Screen.Splash.route) {
-            SplashScreen(onNavigationToOnboarding = {
-                val targetDestination = if (hasCompletedOnboarding) {
-                    Screen.Dashboard.route
-                } else {
-                    Screen.Onboarding.route
-                }
+            SplashScreen(
+                onNavigationToOnboarding = {
+                    val targetDestination = if (hasCompletedOnboarding) {
+                        Screen.Dashboard.route
+                    } else {
+                        Screen.Onboarding.route
+                    }
 
-                navController.navigate(targetDestination) {
-                    popUpTo(Screen.Splash.route) { inclusive = true }
+                    navController.navigate(targetDestination) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
                 }
-            })
+            )
         }
+
+        // Onboarding Screen
         composable(Screen.Onboarding.route) {
-            OnboardingScreen(onNavigationToDashboard = {
-                navController.navigate(Screen.Dashboard.route) {
-                    popUpTo(Screen.Onboarding.route) { inclusive = true }
+            OnboardingScreen(
+                onNavigationToDashboard = {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
                 }
-            })
+            )
         }
+
+        // Dashboard Screen
         composable(Screen.Dashboard.route) {
             DashboardScreen(
                 onNavigateToEventDetails = { eventId ->
                     navController.navigate(Screen.EventDetails.createRoute(eventId))
                 },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                }
             )
         }
+
+        // History Screen
         composable(Screen.History.route) {
             HistoryScreen(
                 onNavigateToDetails = { eventId ->
@@ -77,26 +98,34 @@ fun NavGraph(
                 }
             )
         }
+
+        // Event Details Screen (With Arguments)
         composable(
             route = Screen.EventDetails.route,
             arguments = listOf(navArgument("eventId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+            val eventId = backStackEntry.arguments?.getString("eventId").orEmpty()
             EventDetailsScreen(
                 eventId = eventId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        // Settings Screen
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        // Stats Screen
         composable(Screen.Stats.route) {
             StatsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        // Privacy Center Screen
         composable(Screen.PrivacyCenter.route) {
             PrivacyCenterScreen(
                 onNavigateBack = { navController.popBackStack() }
