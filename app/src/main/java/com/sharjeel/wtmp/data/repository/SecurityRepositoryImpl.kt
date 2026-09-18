@@ -3,6 +3,7 @@ package com.sharjeel.wtmp.data.repository
 import com.sharjeel.wtmp.data.database.SecurityEventDao
 import com.sharjeel.wtmp.data.database.SecurityEventEntity
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
+import com.sharjeel.wtmp.model.EventSeverity
 import com.sharjeel.wtmp.model.SecurityEvent
 import com.sharjeel.wtmp.model.SecurityEventType
 import com.sharjeel.wtmp.repository.UserPreferencesRepository
@@ -10,10 +11,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
+/**
+ * Concrete implementation of [SecurityRepository] bridging Data layer (DAO & Preferences)
+ * with Domain layer models and business logic.
+ */
 class SecurityRepositoryImpl @Inject constructor(
     private val dao: SecurityEventDao,
     private val userPreferencesRepository: UserPreferencesRepository
 ) : SecurityRepository {
+
+    // =================================================================
+    // 1. DATABASE OPERATIONS (SECURITY EVENTS)
+    // =================================================================
 
     override fun getAllEvents(): Flow<List<SecurityEvent>> {
         return dao.getAllEvents().map { entities ->
@@ -37,7 +46,10 @@ class SecurityRepositoryImpl @Inject constructor(
         dao.deleteOlderThan(timestamp)
     }
 
-    // Preferences Delegations
+    // =================================================================
+    // 2. PREFERENCE READ STREAMS (FLOW DELEGATIONS)
+    // =================================================================
+
     override val isFirstTime: Flow<Boolean> = userPreferencesRepository.hasCompletedOnboarding.map { !it }
     override val themeMode: Flow<String> = userPreferencesRepository.themeMode
     override val isBiometricEnabled: Flow<Boolean> = userPreferencesRepository.isBiometricEnabled
@@ -46,8 +58,11 @@ class SecurityRepositoryImpl @Inject constructor(
     override val isAlarmEnabled: Flow<Boolean> = userPreferencesRepository.isAlarmEnabled
     override val isVibrationEnabled: Flow<Boolean> = userPreferencesRepository.isVibrationEnabled
     override val isAntiTheftEnabled: Flow<Boolean> = userPreferencesRepository.isAntiTheftEnabled
-
     override val isProtectionActive: Flow<Boolean> = userPreferencesRepository.isBiometricEnabled
+
+    // =================================================================
+    // 3. PREFERENCE WRITE OPERATIONS (MUTATORS)
+    // =================================================================
 
     override suspend fun setFirstTime(isFirstTime: Boolean) = userPreferencesRepository.setOnboardingCompleted()
     override suspend fun setThemeMode(mode: String) = userPreferencesRepository.setThemeMode(mode)
@@ -59,13 +74,16 @@ class SecurityRepositoryImpl @Inject constructor(
     override suspend fun setVibrationEnabled(enabled: Boolean) = userPreferencesRepository.setVibrationEnabled(enabled)
     override suspend fun setAntiTheftEnabled(enabled: Boolean) = userPreferencesRepository.setAntiTheftEnabled(enabled)
 
-    // Mappers
+    // =================================================================
+    // 4. DATA MAPPERS (ENTITY <-> DOMAIN CONVERSIONS)
+    // =================================================================
+
     private fun SecurityEventEntity.toDomain(): SecurityEvent {
         return SecurityEvent(
             id = id,
             type = SecurityEventType.valueOf(type),
             timestamp = timestamp,
-            severity = com.sharjeel.wtmp.model.EventSeverity.valueOf(severity),
+            severity = EventSeverity.valueOf(severity),
             sessionDuration = sessionDuration,
             deviceState = deviceState,
             evidencePath = evidencePath,
