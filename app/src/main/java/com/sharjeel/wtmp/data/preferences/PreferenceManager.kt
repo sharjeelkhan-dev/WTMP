@@ -1,18 +1,29 @@
 package com.sharjeel.wtmp.data.preferences
 
-import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * DataStore Manager for persisting application preferences and security settings.
+ */
 @Singleton
 class PreferenceManager @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
+
+    // =================================================================
+    // 1. DATASTORE PREFERENCE KEYS
+    // =================================================================
+
     private object PreferencesKeys {
         val IS_FIRST_TIME = booleanPreferencesKey("is_first_time")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -23,6 +34,10 @@ class PreferenceManager @Inject constructor(
         val IS_ALARM_ENABLED = booleanPreferencesKey("is_alarm_enabled")
         val IS_VIBRATION_ENABLED = booleanPreferencesKey("is_vibration_enabled")
     }
+
+    // =================================================================
+    // 2. READ PREFERENCES (FLOW STREAMS)
+    // =================================================================
 
     val isFirstTime: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[PreferencesKeys.IS_FIRST_TIME] ?: true
@@ -55,6 +70,10 @@ class PreferenceManager @Inject constructor(
     val isVibrationEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[PreferencesKeys.IS_VIBRATION_ENABLED] ?: true
     }
+
+    // =================================================================
+    // 3. WRITE PREFERENCES (MUTATION FUNCTIONS)
+    // =================================================================
 
     suspend fun setFirstTime(isFirstTime: Boolean) {
         dataStore.edit { preferences ->
