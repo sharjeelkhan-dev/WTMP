@@ -1,5 +1,4 @@
 package com.sharjeel.wtmp.data.database
-
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
