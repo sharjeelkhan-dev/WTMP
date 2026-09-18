@@ -1,5 +1,6 @@
 package com.sharjeel.wtmp.ui.screens.privacy
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,6 +37,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sharjeel.wtmp.ui.components.GlassCard
 
+// =================================================================
+// 1. MAIN PRIVACY CENTER SCREEN (Stateless Composable)
+// =================================================================
+
+/**
+ * PrivacyCenterScreen outlines security commitments (local storage, encrypted photos,
+ * zero external server routing) and offers global data reset actions.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrivacyCenterScreen(
@@ -46,10 +55,20 @@ fun PrivacyCenterScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Privacy Center", color = colorScheme.primary, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Privacy Center",
+                        color = colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colorScheme.primary)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = colorScheme.primary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -67,6 +86,7 @@ fun PrivacyCenterScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 24.dp, top = 16.dp)
         ) {
+            // Local Storage Feature Card
             item {
                 PrivacyCard(
                     title = "Local Data Storage",
@@ -74,7 +94,8 @@ fun PrivacyCenterScreen(
                     icon = Icons.Default.Lock
                 )
             }
-            
+
+            // Encrypted Photos Card
             item {
                 PrivacyCard(
                     title = "Secured Photos",
@@ -82,7 +103,8 @@ fun PrivacyCenterScreen(
                     icon = Icons.Default.Lock
                 )
             }
-            
+
+            // Architecture Isolation Card
             item {
                 PrivacyCard(
                     title = "Zero External Servers",
@@ -91,6 +113,7 @@ fun PrivacyCenterScreen(
                 )
             }
 
+            // Destructive Data Clearing Section
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 DeleteDataSection()
@@ -99,6 +122,13 @@ fun PrivacyCenterScreen(
     }
 }
 
+// =================================================================
+// 2. SUB-COMPOSABLES
+// =================================================================
+
+/**
+ * Feature card wrapper utilizing custom GlassCard UI component for privacy assurances.
+ */
 @Composable
 fun PrivacyCard(
     title: String,
@@ -140,6 +170,9 @@ fun PrivacyCard(
     }
 }
 
+/**
+ * Destructive action section allowing complete application data wipe.
+ */
 @Composable
 fun DeleteDataSection() {
     val errorColor = MaterialTheme.colorScheme.error
@@ -154,7 +187,7 @@ fun DeleteDataSection() {
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
             modifier = Modifier.padding(bottom = 12.dp)
         )
-        
+
         Button(
             onClick = { /* TODO: Implement global delete */ },
             colors = ButtonDefaults.buttonColors(
@@ -163,15 +196,15 @@ fun DeleteDataSection() {
             ),
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
-            border = androidx.compose.foundation.BorderStroke(1.dp, errorColor.copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, errorColor.copy(alpha = 0.5f))
         ) {
-            Icon(Icons.Default.Delete, contentDescription = null)
+            Icon(imageVector = Icons.Default.Delete, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Delete All Application Data", fontWeight = FontWeight.Bold)
+            Text(text = "Delete All Application Data", fontWeight = FontWeight.Bold)
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "This action is permanent and cannot be undone.",
             style = MaterialTheme.typography.bodySmall,
