@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -71,11 +72,16 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sharjeel.wtmp.R
+
+// =================================================================
+// 1. STATEFUL CONTAINER SCREEN
+// =================================================================
 
 @Composable
 fun SettingsScreen(
@@ -96,8 +102,11 @@ fun SettingsScreen(
         onVibrationToggle = viewModel::updateVibration,
         onAntiTheftToggle = { enabled ->
             if (enabled) {
-                // Guide to Accessibility Settings
-                Toast.makeText(context, "Please enable WTMP Anti-Theft in Accessibility Settings", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    context,
+                    "Please enable WTMP Anti-Theft in Accessibility Settings",
+                    Toast.LENGTH_LONG
+                ).show()
                 val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
                 context.startActivity(intent)
             }
@@ -107,8 +116,6 @@ fun SettingsScreen(
         onUninstallApp = {
             val packageName = context.packageName
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
-
-            // Device Admin Check
             val isAdminActive = dpm?.activeAdmins?.any { it.packageName == packageName } == true
 
             if (isAdminActive) {
@@ -132,6 +139,10 @@ fun SettingsScreen(
         }
     )
 }
+
+// =================================================================
+// 2. STATELESS CONTENT COMPOSABLE
+// =================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -162,14 +173,17 @@ fun SettingsContent(
                 modifier = Modifier.statusBarsPadding(),
                 title = {
                     Text(
-                        "Settings",
+                        text = "Settings",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -344,6 +358,10 @@ fun SettingsContent(
     }
 }
 
+// =================================================================
+// 3. DIALOG COMPOSABLES (FIXED)
+// =================================================================
+
 @Composable
 fun NotificationsDialog(
     isAlarmEnabled: Boolean,
@@ -356,19 +374,21 @@ fun NotificationsDialog(
         onDismissRequest = onDismiss,
         title = { Text("Notifications Settings") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SettingsItemWithSwitch(
                     icon = Icons.Default.Notifications,
                     title = "Alarm Sound",
                     checked = isAlarmEnabled,
-                    onCheckedChange = onAlarmToggle
+                    onCheckedChange = onAlarmToggle,
+                    horizontalPadding = 0.dp
                 )
-                SettingsDivider()
+                SettingsDivider(modifier = Modifier.padding(horizontal = 0.dp))
                 SettingsItemWithSwitch(
                     icon = Icons.Default.Notifications,
                     title = "Vibration",
                     checked = isVibrationEnabled,
-                    onCheckedChange = onVibrationToggle
+                    onCheckedChange = onVibrationToggle,
+                    horizontalPadding = 0.dp
                 )
             }
         },
@@ -416,16 +436,24 @@ fun PrivacyDialog(
     } else {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Protection & Privacy") },
+            title = {
+                Text(
+                    text = "Protection & Privacy",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     SettingsItemWithSlider(
                         icon = Icons.Default.Speed,
                         title = "Detection Sensitivity",
                         value = sensitivity,
                         onValueChange = onSensitivityChange
                     )
-                    SettingsDivider()
+
+                    SettingsDivider(modifier = Modifier.padding(horizontal = 0.dp))
+
                     SettingsItemWithValue(
                         icon = Icons.Default.Timer,
                         title = "Auto-delete Period",
@@ -433,14 +461,18 @@ fun PrivacyDialog(
                             0 -> "Never"
                             else -> "$autoDeletePeriod Days"
                         },
-                        onClick = { showAutoDeleteDialog = true }
+                        onClick = { showAutoDeleteDialog = true },
+                        horizontalPadding = 0.dp
                     )
-                    SettingsDivider()
+
+                    SettingsDivider(modifier = Modifier.padding(horizontal = 0.dp))
+
                     SettingsItem(
                         icon = Icons.Default.DeleteSweep,
                         title = "Clear All History",
                         isDanger = true,
-                        onClick = onClearHistory
+                        onClick = onClearHistory,
+                        horizontalPadding = 0.dp
                     )
                 }
             },
@@ -449,116 +481,6 @@ fun PrivacyDialog(
                     Text("Done")
                 }
             }
-        )
-    }
-}
-
-@Composable
-fun SettingsItemWithSwitch(
-    icon: ImageVector,
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    SettingsItemContent(
-        painter = rememberVectorPainter(icon),
-        title = title,
-        showArrow = false,
-        isDanger = false,
-        onClick = { onCheckedChange(!checked) }
-    ) {
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        )
-    }
-}
-
-@Composable
-fun SettingsItemWithSlider(
-    icon: ImageVector,
-    title: String,
-    value: Float,
-    onValueChange: (Float) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = when {
-                    value < 0.33f -> "Low"
-                    value < 0.67f -> "Medium"
-                    else -> "High"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.padding(top = 4.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
-            )
-        )
-    }
-}
-
-@Composable
-fun SettingsItemWithValue(
-    icon: ImageVector,
-    title: String,
-    value: String,
-    onClick: () -> Unit
-) {
-    SettingsItemContent(
-        painter = rememberVectorPainter(icon),
-        title = title,
-        showArrow = true,
-        isDanger = false,
-        onClick = onClick
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 8.dp)
         )
     }
 }
@@ -603,6 +525,10 @@ fun SelectionDialog(
     )
 }
 
+// =================================================================
+// 4. ITEM ROW & SECTION SUB-COMPOSABLES
+// =================================================================
+
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column {
@@ -626,19 +552,140 @@ fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) 
 }
 
 @Composable
+fun SettingsItemWithSwitch(
+    icon: ImageVector,
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
+) {
+    SettingsItemContent(
+        painter = rememberVectorPainter(icon),
+        title = title,
+        showArrow = false,
+        isDanger = false,
+        onClick = { onCheckedChange(!checked) },
+        horizontalPadding = horizontalPadding
+    ) {
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        )
+    }
+}
+
+@Composable
+fun SettingsItemWithSlider(
+    icon: ImageVector,
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = when {
+                    value < 0.33f -> "Low"
+                    value < 0.67f -> "Medium"
+                    else -> "High"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.padding(horizontal = 4.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
+            )
+        )
+    }
+}
+
+@Composable
+fun SettingsItemWithValue(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
+) {
+    SettingsItemContent(
+        painter = rememberVectorPainter(icon),
+        title = title,
+        showArrow = true,
+        isDanger = false,
+        onClick = onClick,
+        horizontalPadding = horizontalPadding
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(end = 4.dp),
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
 fun SettingsItem(
     icon: ImageVector,
     title: String,
     showArrow: Boolean = false,
     isDanger: Boolean = false,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
 ) {
     SettingsItemContent(
         painter = rememberVectorPainter(icon),
         title = title,
         showArrow = showArrow,
         isDanger = isDanger,
-        onClick = onClick
+        onClick = onClick,
+        horizontalPadding = horizontalPadding
     )
 }
 
@@ -648,14 +695,16 @@ fun SettingsItem(
     title: String,
     showArrow: Boolean = false,
     isDanger: Boolean = false,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
 ) {
     SettingsItemContent(
         painter = painter,
         title = title,
         showArrow = showArrow,
         isDanger = isDanger,
-        onClick = onClick
+        onClick = onClick,
+        horizontalPadding = horizontalPadding
     )
 }
 
@@ -667,6 +716,7 @@ private fun SettingsItemContent(
     isDanger: Boolean,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp,
     trailingContent: @Composable (() -> Unit)? = null
 ) {
     val contentColor = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
@@ -683,7 +733,7 @@ private fun SettingsItemContent(
         color = Color.Transparent
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -700,13 +750,15 @@ private fun SettingsItemContent(
                     tint = iconTint
                 )
             }
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = title,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = contentColor
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             if (trailingContent != null) {
@@ -726,13 +778,17 @@ private fun SettingsItemContent(
 }
 
 @Composable
-fun SettingsDivider() {
+fun SettingsDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = modifier.padding(horizontal = 16.dp),
         thickness = 0.8.dp,
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     )
 }
+
+// =================================================================
+// 5. PREVIEW PROVIDERS
+// =================================================================
 
 @Preview(name = "Light Mode", showBackground = true)
 @Preview(name = "Dark Mode", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
