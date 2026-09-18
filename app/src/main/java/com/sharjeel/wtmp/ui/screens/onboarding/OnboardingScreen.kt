@@ -45,12 +45,27 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 
+// =================================================================
+// 1. DATA MODELS
+// =================================================================
+
+/**
+ * Data representation for individual onboarding screen slides.
+ */
 data class OnboardingSlide(
     val title: String,
     val description: String,
     val icon: ImageVector
 )
 
+// =================================================================
+// 2. MAIN ONBOARDING SCREEN (Stateful Composable)
+// =================================================================
+
+/**
+ * OnboardingScreen manages introduction slides, animated page indicators,
+ * skip/next actions, and final onboarding completion preference saving.
+ */
 @Composable
 fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
@@ -59,7 +74,7 @@ fun OnboardingScreen(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
 
-    // Dark Theme Palette matching Dashboard & Filter Sheet
+    // Dark Theme Color Palette matching WTMP Design System
     val darkBackground = Color(0xFF131418)
     val cardBackground = Color(0xFF1E1F25)
     val accentBlue = Color(0xFF2196F3)
@@ -93,7 +108,9 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top Header: Skip Button
+            // -------------------------------------------------------------
+            // Top Header: Skip Button (Hidden on the final slide)
+            // -------------------------------------------------------------
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -118,7 +135,9 @@ fun OnboardingScreen(
                 }
             }
 
-            // Slide ViewPager
+            // -------------------------------------------------------------
+            // Slide ViewPager Content
+            // -------------------------------------------------------------
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f)
@@ -133,7 +152,9 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // -------------------------------------------------------------
             // Smooth Animated Page Indicators
+            // -------------------------------------------------------------
             Row(
                 modifier = Modifier
                     .height(12.dp)
@@ -162,7 +183,9 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Bottom Action Button
+            // -------------------------------------------------------------
+            // Bottom Action Button ("Next" vs "Get Started")
+            // -------------------------------------------------------------
             Button(
                 onClick = {
                     if (pagerState.currentPage < 2) {
@@ -195,6 +218,13 @@ fun OnboardingScreen(
     }
 }
 
+// =================================================================
+// 3. SUB-COMPOSABLES
+// =================================================================
+
+/**
+ * Visual Layout Composable for individual Onboarding slide elements.
+ */
 @Composable
 fun OnboardingSlideContent(
     slide: OnboardingSlide,
@@ -209,7 +239,7 @@ fun OnboardingSlideContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Modern Elevated Icon Card
+        // Elevated Icon Card with Vertical Gradient Border
         Box(
             modifier = Modifier
                 .size(160.dp)
