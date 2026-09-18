@@ -12,10 +12,18 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Repository handling user settings and app preferences using Jetpack DataStore.
+ */
 @Singleton
 class UserPreferencesRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
+
+    // =================================================================
+    // 1. DATASTORE KEYS CONFIGURATION
+    // =================================================================
+
     private object PreferencesKeys {
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -27,7 +35,10 @@ class UserPreferencesRepository @Inject constructor(
         val IS_ANTI_THEFT_ENABLED = booleanPreferencesKey("is_anti_theft_enabled")
     }
 
-    // Onboarding
+    // =================================================================
+    // 2. ONBOARDING PREFERENCES
+    // =================================================================
+
     val hasCompletedOnboarding: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] ?: false
     }
@@ -38,7 +49,10 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    // Settings Streams
+    // =================================================================
+    // 3. SETTINGS READ FLOWS
+    // =================================================================
+
     val themeMode: Flow<String> = dataStore.data.map { preferences ->
         preferences[PreferencesKeys.THEME_MODE] ?: "System"
     }
@@ -67,7 +81,10 @@ class UserPreferencesRepository @Inject constructor(
         preferences[PreferencesKeys.IS_ANTI_THEFT_ENABLED] ?: false
     }
 
-    // Settings Updaters
+    // =================================================================
+    // 4. SETTINGS WRITE UPDATERS
+    // =================================================================
+
     suspend fun setThemeMode(mode: String) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.THEME_MODE] = mode
