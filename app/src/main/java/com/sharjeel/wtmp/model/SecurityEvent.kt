@@ -8,6 +8,10 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.UUID
 
+// =================================================================
+// 1. ENUMS (EVENT TYPES & SEVERITY)
+// =================================================================
+
 enum class SecurityEventType(val title: String) {
     DEVICE_UNLOCKED("Device Unlocked"),
     FAILED_UNLOCK("Failed Unlock Attempt"),
@@ -18,8 +22,14 @@ enum class SecurityEventType(val title: String) {
 }
 
 enum class EventSeverity {
-    LOW, MEDIUM, HIGH
+    LOW,
+    MEDIUM,
+    HIGH
 }
+
+// =================================================================
+// 2. DATA MODELS
+// =================================================================
 
 data class AppUsageInfo(
     val packageName: String,
@@ -27,6 +37,10 @@ data class AppUsageInfo(
     val iconUri: String? = null,
     val launchedTimestamp: Long
 )
+
+// =================================================================
+// 3. ROOM DATABASE ENTITY
+// =================================================================
 
 @Entity(tableName = "security_events")
 @TypeConverters(AppUsageConverter::class)
@@ -41,6 +55,10 @@ data class SecurityEvent(
     val evidencePath: String? = null,
     val accessedApps: List<AppUsageInfo> = emptyList()
 )
+
+// =================================================================
+// 4. ROOM TYPE CONVERTERS
+// =================================================================
 
 class AppUsageConverter {
     private val gson = Gson()
