@@ -11,6 +11,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// =================================================================
+// 1. UI STATE DATA HOLDER
+// =================================================================
+
+/**
+ * Data class representing the immutable state for the Settings screen.
+ */
 data class SettingsUiState(
     val themeMode: String = "System",
     val isBiometricEnabled: Boolean = false,
@@ -22,10 +29,22 @@ data class SettingsUiState(
     val isLoading: Boolean = false
 )
 
+// =================================================================
+// 2. SETTINGS VIEWMODEL
+// =================================================================
+
+/**
+ * SettingsViewModel manages application settings streams from SecurityRepository
+ * and exposes user preferences as a unified StateFlow to the UI.
+ */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: SecurityRepository
 ) : ViewModel() {
+
+    // =================================================================
+    // STATE OBSERVER (Combine DataStore/Repository Flows)
+    // =================================================================
 
     val uiState: StateFlow<SettingsUiState> = combine(
         repository.themeMode,
@@ -51,6 +70,10 @@ class SettingsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = SettingsUiState(isLoading = true)
     )
+
+    // =================================================================
+    // USER INTENTS / PREFERENCE UPDATES
+    // =================================================================
 
     fun updateTheme(mode: String) {
         viewModelScope.launch {
@@ -94,6 +117,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Clears all recorded security logs and captured evidence up to current timestamp.
+     */
     fun clearData() {
         viewModelScope.launch {
             repository.deleteOlderThan(System.currentTimeMillis())
