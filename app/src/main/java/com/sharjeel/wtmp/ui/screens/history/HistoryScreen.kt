@@ -327,9 +327,7 @@ fun TimelineCard(
                     modifier = Modifier.size(24.dp)
                 )
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
             // Title & Formatted Timestamp Column
             Column(modifier = Modifier.weight(1f)) {
                 Text(
