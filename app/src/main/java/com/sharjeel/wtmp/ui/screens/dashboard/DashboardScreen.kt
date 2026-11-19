@@ -285,7 +285,19 @@ fun DashboardScreenContent(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = screenBg
+        containerColor = screenBg,
+        bottomBar = {
+            DockedBottomNavBar(
+                currentRoute = "dashboard",
+                onRouteSelected = { route ->
+                    when (route) {
+                        "history" -> onNavigateToHistory()
+                        "stats" -> onNavigateToStats()
+                        "settings" -> onNavigateToSettings()
+                    }
+                }
+            )
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
