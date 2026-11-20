@@ -16,6 +16,7 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.max
 
 /**
  * Service responsible for processing security events and generating report audits
@@ -42,7 +43,7 @@ class AiSecurityService @Inject constructor(
      */
     suspend fun analyzeEventWithVision(event: SecurityEvent): AiEventAnalysis? = withContext(Dispatchers.IO) {
         if (generativeModel == null) {
-            Log.e(TAG, "GenerativeModel is null. Firebase might not be initialized.")
+            Log.e(TAG, "GenerativeModel is null. Firebase AI might not be initialized.")
             return@withContext null
         }
 
@@ -53,7 +54,7 @@ class AiSecurityService @Inject constructor(
             val bitmap = loadBitmapFromPath(event.evidencePath)
 
             val response = if (bitmap != null) {
-                Log.d(TAG, "Generating content with image...")
+                Log.d(TAG, "Generating content with image (${bitmap.width}x${bitmap.height})...")
                 generativeModel.generateContent(
                     content {
                         image(bitmap)
@@ -61,13 +62,16 @@ class AiSecurityService @Inject constructor(
                     }
                 )
             } else {
-                Log.d(TAG, "Generating content without image...")
+                Log.d(TAG, "Generating content without image (evidencePath=${event.evidencePath})...")
                 generativeModel.generateContent(promptText)
             }
 
-            val resultText = response.text ?: ""
+            val resultText = response.text?.trim().orEmpty()
             Log.d(TAG, "AI Response: $resultText")
-            parseEventAnalysis(resultText)
+            if (resultText.isBlank()) {
+                return@withContext null
+            }
+            parseEventAnalysis(resultText, hasImage = bitmap != null)
         } catch (e: Exception) {
             Log.e(TAG, "Error during AI analysis: ${e.localizedMessage}", e)
             null
@@ -88,9 +92,11 @@ class AiSecurityService @Inject constructor(
 
         try {
             val response = generativeModel.generateContent(prompt)
-            parseSecurityReport(response.text ?: "")
+            val raw = response.text?.trim().orEmpty()
+            if (raw.isBlank()) return@withContext null
+            parseSecurityReport(raw)
         } catch (e: Exception) {
-            Log.e(TAG, "Error generating report: ${e.localizedMessage}")
+            Log.e(TAG, "Error generating report: ${e.localizedMessage}", e)
             null
         }
     }
@@ -99,33 +105,75 @@ class AiSecurityService @Inject constructor(
     // 3. PRIVATE RESPONSE PARSERS
     // =================================================================
 
-    private fun parseEventAnalysis(text: String): AiEventAnalysis {
-        fun extractValue(key: String): String? {
-            val pattern = "(?i)$key:\\s*(.*)".toRegex()
-            return pattern.find(text)?.groupValues?.get(1)?.trim()?.removeSurrounding("**")
+    private fun parseEventAnalysis(text: String, hasImage: Boolean): AiEventAnalysis {
+        val cleaned = text.replace("```", "").trim()
+
+        fun extractSection(vararg keys: String): String? {
+            val joinedKeys = keys.joinToString("|") { Regex.escape(it) }
+            val pattern = "(?im)^\\s*(?:\\*\\*)?(?:$joinedKeys)(?:\\*\\*)?\\s*:\\s*(.*?)(?=^\\s*(?:\\*\\*)?(?:Explanation|Risk\\s*Level|RiskLevel|Category|Description|Intruder\\s*Description|IntruderDescription|Recommendation)(?:\\*\\*)?\\s*:|\\z)"
+                .toRegex(setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE))
+
+            return pattern.find(cleaned)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.removeSurrounding("**")
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
         }
 
+        val explanation = extractSection("Explanation")
+            ?: cleaned
+        val riskLevel = extractSection("Risk Level", "RiskLevel")
+            ?: "Low"
+        val category = extractSection("Category")
+            ?: "Normal"
+        val description = extractSection("Description", "Intruder Description", "IntruderDescription")
+            ?: if (hasImage) {
+                "Visual details were not separated by the model; check event explanation."
+            } else {
+                "No image attached for visual subject analysis."
+            }
+        val recommendation = extractSection("Recommendation")
+            ?: "Keep your device credentials secure."
+
         return AiEventAnalysis(
-            explanation = extractValue("Explanation") ?: "Analyzed security event.",
-            riskLevel = extractValue("RiskLevel") ?: "Low",
-            category = extractValue("Category") ?: "Normal Activity",
-            intruderDescription = extractValue("Description"),
-            recommendation = extractValue("Recommendation") ?: "Keep your device secure."
+            explanation = explanation,
+            riskLevel = riskLevel,
+            category = category,
+            intruderDescription = description,
+            recommendation = recommendation
         )
     }
 
     private fun parseSecurityReport(text: String): AiSecurityReport {
-        fun extractValue(key: String): String? {
-            val pattern = "(?i)$key:\\s*(.*)".toRegex()
-            return pattern.find(text)?.groupValues?.get(1)?.trim()?.removeSurrounding("**")
+        val cleaned = text.replace("```", "").trim()
+
+        fun extractLine(key: String): String? {
+            val pattern = "(?im)^\\s*(?:\\*\\*)?${Regex.escape(key)}(?:\\*\\*)?\\s*:\\s*(.+)$".toRegex()
+            return pattern.find(cleaned)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.removeSurrounding("**")
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
         }
 
         return AiSecurityReport(
-            reportTitle = extractValue("Title") ?: "Security Audit",
-            summary = extractValue("Summary") ?: "Report generated.",
-            securityScore = extractValue("Score")?.filter { it.isDigit() }?.toIntOrNull() ?: 80,
-            detailedInsights = extractValue("Insights")?.split("|")?.map { it.trim() } ?: emptyList(),
-            recommendations = extractValue("Recommendations")?.split("|")?.map { it.trim() } ?: emptyList()
+            reportTitle = extractLine("Title") ?: "Security Audit",
+            summary = extractLine("Summary") ?: "Report generated.",
+            securityScore = extractLine("Score")?.filter { it.isDigit() }?.toIntOrNull()?.coerceIn(0, 100) ?: 80,
+            detailedInsights = extractLine("Insights")
+                ?.split("|")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?: emptyList(),
+            recommendations = extractLine("Recommendations")
+                ?.split("|")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?: emptyList()
         )
     }
 
@@ -134,14 +182,30 @@ class AiSecurityService @Inject constructor(
     // =================================================================
 
     private fun loadBitmapFromPath(path: String?): Bitmap? {
-        return path?.let {
-            if (File(it).exists()) {
-                Log.d(TAG, "Loading bitmap from: $it")
-                BitmapFactory.decodeFile(it)
-            } else {
-                Log.w(TAG, "Evidence file does not exist: $it")
-                null
+        if (path.isNullOrBlank()) return null
+        val file = File(path)
+        if (!file.exists() || !file.canRead()) {
+            Log.w(TAG, "Evidence file missing or unreadable: $path")
+            return null
+        }
+
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, bounds)
+
+            val maxDim = max(bounds.outWidth, bounds.outHeight)
+            var sampleSize = 1
+            while (maxDim / sampleSize > 1024) {
+                sampleSize *= 2
             }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+            }
+            BitmapFactory.decodeFile(path, decodeOptions)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to decode bitmap from $path: ${e.localizedMessage}", e)
+            null
         }
     }
 
@@ -156,30 +220,30 @@ class AiSecurityService @Inject constructor(
             - Time: ${dateFormat.format(Date(event.timestamp))}
             - Device State: ${event.deviceState}
             - Accessed Apps: $appList
-            
-            IMPORTANT: If an image is provided, provide a detailed visual description of the person (gender, age group, clothing, identifying features).
-            
+
+            IMPORTANT: If an image is provided, provide an accurate, objective visual description of what is visible in the image (person's appearance, clothing, surroundings) without guessing identity.
+
             Respond in this EXACT format:
-            Explanation: [Conversational explanation]
+            Explanation: [Concise explanation of the event and context]
             RiskLevel: [Low/Medium/High]
             Category: [Normal/Unusual/Suspicious/High-Risk]
-            Description: [Detailed visual description of person. If no person, say 'No person detected']
-            Recommendation: [One actionable tip]
+            Description: [Objective visual description of person/scene. If no person is visible, say 'No person detected']
+            Recommendation: [One actionable security tip]
         """.trimIndent()
     }
 
     private fun buildReportPrompt(userPrompt: String, eventSummary: String): String {
         return """
             User Request: "$userPrompt"
-            
+
             Based on these recent security events, generate a professional security report:
             $eventSummary
-            
+
             Respond in this EXACT format:
             Title: [Report Title]
-            Summary: [Conversational summary]
+            Summary: [Concise summary]
             Score: [0-100]
-            Insights: [Bullet points separated by |]
+            Insights: [Key points separated by |]
             Recommendations: [Actionable tips separated by |]
         """.trimIndent()
     }
