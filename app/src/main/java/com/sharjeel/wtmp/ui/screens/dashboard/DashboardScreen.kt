@@ -16,10 +16,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +32,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -38,18 +42,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -66,6 +74,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -79,9 +89,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -100,8 +115,21 @@ import java.util.Date
 import java.util.Locale
 
 private val EmeraldPrimary = Color(0xFF047857)
+private val EmeraldAction = Color(0xFF0D7A5F)
 private val SwitchActiveGreen = Color(0xFF22C55E)
 private val AlertRed = Color(0xFFEF4444)
+private val DestructiveRed = Color(0xFFDC2626)
+
+enum class EventSortOrder(val label: String) {
+    NEWEST_FIRST("Newest first"),
+    OLDEST_FIRST("Oldest first")
+}
+
+enum class EventShowFilter(val label: String) {
+    ALL_EVENTS("All events"),
+    FAILED_ATTEMPTS("Failed attempts"),
+    UNLOCKS("Unlocks")
+}
 
 @Composable
 fun DashboardScreen(
@@ -120,6 +148,7 @@ fun DashboardScreen(
         onReportTypeToggled = viewModel::toggleReportType,
         onResetFilters = viewModel::resetFilters,
         onGenerateCustomReport = viewModel::generateCustomAiReport,
+        onAlertEmailIntervalSelected = viewModel::setAlertEmailInterval,
         onNavigateToEventDetails = onNavigateToEventDetails,
         onNavigateToSettings = onNavigateToSettings,
         onNavigateToHistory = onNavigateToHistory,
@@ -247,6 +276,7 @@ fun DashboardScreenContent(
     onReportTypeToggled: (ReportType) -> Unit,
     onResetFilters: () -> Unit,
     onGenerateCustomReport: (String) -> Unit,
+    onAlertEmailIntervalSelected: (String) -> Unit,
     onNavigateToEventDetails: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit,
@@ -261,8 +291,19 @@ fun DashboardScreenContent(
     var alarmSoundToggle by remember { mutableStateOf(true) }
 
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showSortShowMenu by remember { mutableStateOf(false) }
+    var selectedSortOrder by remember { mutableStateOf(EventSortOrder.NEWEST_FIRST) }
+    var selectedShowFilter by remember { mutableStateOf(EventShowFilter.ALL_EVENTS) }
+
     var showAiDialog by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    var wrongAttemptsValue by remember { mutableStateOf("1") }
+    var showWrongAttemptsSheet by remember { mutableStateOf(false) }
+    var showEmailDialog by remember { mutableStateOf(false) }
+    var showCameraPermissionDialog by remember { mutableStateOf(false) }
+    var pendingProtectionToggleAfterPermission by remember { mutableStateOf(false) }
+    var eventPendingDeletion by remember { mutableStateOf<SecurityEvent?>(null) }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var selectedDateFilter by remember { mutableStateOf("All") }
     var successfulUnlockChecked by remember { mutableStateOf(true) }
@@ -276,6 +317,22 @@ fun DashboardScreenContent(
             onToggleProtection()
         } else {
             Toast.makeText(context, "Permissions required for protection", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val proceedWithProtectionActivation = {
+        if (!PermissionUtils.isAdminActive(context)) {
+            Toast.makeText(context, "Activate Device Admin", Toast.LENGTH_LONG).show()
+            val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, ComponentName(context, AdminReceiver::class.java))
+                putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to monitor failed unlock attempts.")
+            }
+            context.startActivity(intent)
+        } else if (!PermissionUtils.hasUsageStatsPermission(context)) {
+            Toast.makeText(context, "Grant Usage Access", Toast.LENGTH_LONG).show()
+            context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        } else {
+            permissionLauncher.launch(PermissionUtils.getRequiredPermissions())
         }
     }
 
@@ -339,22 +396,40 @@ fun DashboardScreenContent(
                                 )
                             }
 
-                            IconButton(
-                                onClick = { showFilterSheet = true },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.filter_filtering_icon),
-                                    contentDescription = "Filter",
-                                    modifier = Modifier.size(22.dp),
-                                    tint = EmeraldPrimary
+                            Box {
+                                IconButton(
+                                    onClick = { showSortShowMenu = true },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.filter_filtering_icon),
+                                        contentDescription = "Sort and Show",
+                                        modifier = Modifier.size(22.dp),
+                                        tint = EmeraldPrimary
+                                    )
+                                }
+                                SortShowDropdownMenu(
+                                    expanded = showSortShowMenu,
+                                    selectedSortOrder = selectedSortOrder,
+                                    selectedShowFilter = selectedShowFilter,
+                                    onSelectSortOrder = {
+                                        selectedSortOrder = it
+                                        showSortShowMenu = false
+                                    },
+                                    onSelectShowFilter = {
+                                        selectedShowFilter = it
+                                        showSortShowMenu = false
+                                    },
+                                    onOpenAdvancedFilters = {
+                                        showSortShowMenu = false
+                                        showFilterSheet = true
+                                    },
+                                    onDismiss = { showSortShowMenu = false }
                                 )
                             }
                         }
                     }
-
                     Spacer(modifier = Modifier.height(6.dp))
-
                     Text(
                         text = "Today",
                         style = MaterialTheme.typography.headlineLarge.copy(
@@ -364,7 +439,6 @@ fun DashboardScreenContent(
                         ),
                         color = if (isDark) Color.White else Color(0xFF0F172A)
                     )
-
                     Text(
                         text = formattedDate,
                         style = MaterialTheme.typography.bodyMedium.copy(
@@ -374,31 +448,20 @@ fun DashboardScreenContent(
                     )
                 }
             }
-
             item {
                 ReferenceProtectionCard(
                     cardBg = cardBg,
                     isActive = uiState.isProtectionActive,
                     failedAttempts = uiState.events.count { it.type == SecurityEventType.FAILED_UNLOCK },
                     unlocksCount = uiState.events.count { it.type == SecurityEventType.DEVICE_UNLOCKED },
+                    isCloudBackupEnabled = uiState.isCloudBackupEnabled,
                     onToggle = {
                         if (!uiState.isProtectionActive) {
                             if (PermissionUtils.hasAllPermissions(context) && PermissionUtils.isAdminActive(context)) {
                                 onToggleProtection()
                             } else {
-                                if (!PermissionUtils.isAdminActive(context)) {
-                                    Toast.makeText(context, "Activate Device Admin", Toast.LENGTH_LONG).show()
-                                    val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-                                        putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, ComponentName(context, AdminReceiver::class.java))
-                                        putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to monitor failed unlock attempts.")
-                                    }
-                                    context.startActivity(intent)
-                                } else if (!PermissionUtils.hasUsageStatsPermission(context)) {
-                                    Toast.makeText(context, "Grant Usage Access", Toast.LENGTH_LONG).show()
-                                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                                } else {
-                                    permissionLauncher.launch(PermissionUtils.getRequiredPermissions())
-                                }
+                                pendingProtectionToggleAfterPermission = true
+                                showCameraPermissionDialog = true
                             }
                         } else {
                             onToggleProtection()
@@ -433,14 +496,26 @@ fun DashboardScreenContent(
                             modifier = Modifier.clickable(onClick = onNavigateToHistory)
                         )
                     }
-
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
                         color = cardBg
                     ) {
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                            val sampleEvents = uiState.events.take(4)
+                            val filteredEvents = remember(uiState.events, selectedShowFilter, selectedSortOrder) {
+                                val byType = when (selectedShowFilter) {
+                                    EventShowFilter.ALL_EVENTS -> uiState.events
+                                    EventShowFilter.FAILED_ATTEMPTS -> uiState.events.filter { it.type == SecurityEventType.FAILED_UNLOCK }
+                                    EventShowFilter.UNLOCKS -> uiState.events.filter {
+                                        it.type == SecurityEventType.DEVICE_UNLOCKED || it.type == SecurityEventType.UNEXPECTED_UNLOCK
+                                    }
+                                }
+                                when (selectedSortOrder) {
+                                    EventSortOrder.NEWEST_FIRST -> byType.sortedByDescending { it.timestamp }
+                                    EventSortOrder.OLDEST_FIRST -> byType.sortedBy { it.timestamp }
+                                }
+                            }
+                            val sampleEvents = filteredEvents.take(1)
                             if (sampleEvents.isEmpty()) {
                                 Box(
                                     modifier = Modifier
@@ -509,8 +584,8 @@ fun DashboardScreenContent(
                                 icon = Icons.Default.Tag,
                                 iconBg = Color(0xFFFF9500),
                                 title = "Wrong attempts before capture",
-                                value = "1",
-                                onClick = onNavigateToSettings
+                                value = "$wrongAttemptsValue >",
+                                onClick = { showWrongAttemptsSheet = true }
                             )
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 64.dp, end = 16.dp),
@@ -533,8 +608,8 @@ fun DashboardScreenContent(
                                 icon = Icons.Default.Email,
                                 iconBg = Color(0xFF5856D6),
                                 title = "Email alert",
-                                value = "Instant",
-                                onClick = onNavigateToSettings
+                                value = "${uiState.alertEmailInterval} >",
+                                onClick = { showEmailDialog = true }
                             )
                         }
                     }
@@ -561,19 +636,70 @@ fun DashboardScreenContent(
             )
         }
 
+        if (showWrongAttemptsSheet) {
+            WrongAttemptsBottomSheet(
+                currentValue = wrongAttemptsValue,
+                onSelected = { wrongAttemptsValue = it },
+                onDismiss = { showWrongAttemptsSheet = false }
+            )
+        }
+
+        if (showEmailDialog) {
+            EmailAlertIntervalDialog(
+                currentInterval = uiState.alertEmailInterval,
+                onSelected = onAlertEmailIntervalSelected,
+                onDismiss = { showEmailDialog = false }
+            )
+        }
+
+        if (showCameraPermissionDialog) {
+            CameraPermissionDialog(
+                onAllowCamera = {
+                    showCameraPermissionDialog = false
+                    if (pendingProtectionToggleAfterPermission) {
+                        pendingProtectionToggleAfterPermission = false
+                        proceedWithProtectionActivation()
+                    }
+                },
+                onNotNow = {
+                    showCameraPermissionDialog = false
+                    pendingProtectionToggleAfterPermission = false
+                }
+            )
+        }
+
+        if (eventPendingDeletion != null) {
+            DeleteReportDialog(
+                photoCount = 2,
+                onConfirmDelete = {
+                    eventPendingDeletion = null
+                },
+                onDismiss = { eventPendingDeletion = null }
+            )
+        }
+
         if (showFilterSheet) {
+            val filterSheetBg = if (isDark) Color(0xFF0F172A) else Color.White
+            val filterTitleColor = if (isDark) Color.White else Color(0xFF0F172A)
+
             ModalBottomSheet(
                 onDismissRequest = { showFilterSheet = false },
                 sheetState = sheetState,
-                containerColor = Color(0xFF0F172A),
-                contentColor = Color.White,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                containerColor = filterSheetBg,
+                contentColor = filterTitleColor,
+                tonalElevation = 0.dp,
+                scrimColor = Color.Black.copy(alpha = 0.45f),
                 windowInsets = WindowInsets(0, 0, 0, 0)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp)
-                        .navigationBarsPadding(),
+                        .background(filterSheetBg)
+                        .padding(start = 20.dp, end = 20.dp, top = 4.dp)
+                        .navigationBarsPadding()
+                        .padding(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
@@ -582,7 +708,7 @@ fun DashboardScreenContent(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         ),
-                        color = Color.White,
+                        color = filterTitleColor,
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
 
@@ -595,22 +721,32 @@ fun DashboardScreenContent(
                         )
                     )
 
-                    val dateOptions = listOf("Last 24 Hours", "Past Week", "Past Month", "Today", "All")
-                    dateOptions.forEach { option ->
+                    val dateOptions = listOf(
+                        "Last 24 Hours" to TimeInterval.LAST_24_HOURS,
+                        "Past Week" to TimeInterval.PAST_WEEK,
+                        "Past Month" to TimeInterval.PAST_MONTH,
+                        "Today" to TimeInterval.TODAY,
+                        "All" to TimeInterval.ALL
+                    )
+                    dateOptions.forEach { (option, interval) ->
                         val isSelected = selectedDateFilter == option
+                        val selectDateOption = {
+                            selectedDateFilter = option
+                            onTimeIntervalSelected(interval)
+                        }
 
                         val optionModifier = if (isSelected) {
                             Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF131D2E))
-                                .border(1.dp, Color(0xFF22C55E).copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                .clickable { selectedDateFilter = option }
+                                .background(if (isDark) Color(0xFF131D2E) else Color(0xFFD1FAE5).copy(alpha = 0.45f))
+                                .border(1.dp, EmeraldAction.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                .clickable(onClick = selectDateOption)
                                 .padding(horizontal = 2.dp, vertical = 1.dp)
                         } else {
                             Modifier
                                 .fillMaxWidth()
-                                .clickable { selectedDateFilter = option }
+                                .clickable(onClick = selectDateOption)
                                 .padding(vertical = 1.dp)
                         }
 
@@ -624,9 +760,9 @@ fun DashboardScreenContent(
                             ) {
                                 RadioButton(
                                     selected = isSelected,
-                                    onClick = { selectedDateFilter = option },
+                                    onClick = selectDateOption,
                                     colors = RadioButtonDefaults.colors(
-                                        selectedColor = Color(0xFF22C55E),
+                                        selectedColor = EmeraldAction,
                                         unselectedColor = Color(0xFF64748B)
                                     ),
                                     modifier = Modifier.size(32.dp)
@@ -637,7 +773,7 @@ fun DashboardScreenContent(
                                         fontSize = 14.sp,
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                     ),
-                                    color = Color.White
+                                    color = filterTitleColor
                                 )
                             }
                         }
@@ -654,10 +790,14 @@ fun DashboardScreenContent(
                         )
                     )
 
+                    val toggleSuccessfulUnlock = {
+                        successfulUnlockChecked = !successfulUnlockChecked
+                        onReportTypeToggled(ReportType.SUCCESSFUL_UNLOCK)
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { successfulUnlockChecked = !successfulUnlockChecked }
+                            .clickable(onClick = toggleSuccessfulUnlock)
                             .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -665,13 +805,13 @@ fun DashboardScreenContent(
                         Text(
                             text = "Successful Unlock",
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                            color = Color.White
+                            color = filterTitleColor
                         )
                         Checkbox(
                             checked = successfulUnlockChecked,
-                            onCheckedChange = { successfulUnlockChecked = it },
+                            onCheckedChange = { toggleSuccessfulUnlock() },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF22C55E),
+                                checkedColor = EmeraldAction,
                                 uncheckedColor = Color(0xFF64748B),
                                 checkmarkColor = Color.White
                             ),
@@ -679,10 +819,14 @@ fun DashboardScreenContent(
                         )
                     }
 
+                    val toggleUnsuccessfulUnlock = {
+                        unsuccessfulUnlockChecked = !unsuccessfulUnlockChecked
+                        onReportTypeToggled(ReportType.UNSUCCESSFUL_UNLOCK)
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { unsuccessfulUnlockChecked = !unsuccessfulUnlockChecked }
+                            .clickable(onClick = toggleUnsuccessfulUnlock)
                             .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -690,13 +834,13 @@ fun DashboardScreenContent(
                         Text(
                             text = "Unsuccessful Unlock",
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                            color = Color.White
+                            color = filterTitleColor
                         )
                         Checkbox(
                             checked = unsuccessfulUnlockChecked,
-                            onCheckedChange = { unsuccessfulUnlockChecked = it },
+                            onCheckedChange = { toggleUnsuccessfulUnlock() },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF22C55E),
+                                checkedColor = EmeraldAction,
                                 uncheckedColor = Color(0xFF64748B),
                                 checkmarkColor = Color.White
                             ),
@@ -704,10 +848,14 @@ fun DashboardScreenContent(
                         )
                     }
 
+                    val toggleAppLaunched = {
+                        appLaunchedChecked = !appLaunchedChecked
+                        onReportTypeToggled(ReportType.APP_LAUNCHED)
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { appLaunchedChecked = !appLaunchedChecked }
+                            .clickable(onClick = toggleAppLaunched)
                             .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -715,13 +863,13 @@ fun DashboardScreenContent(
                         Text(
                             text = "App Launched",
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                            color = Color.White
+                            color = filterTitleColor
                         )
                         Checkbox(
                             checked = appLaunchedChecked,
-                            onCheckedChange = { appLaunchedChecked = it },
+                            onCheckedChange = { toggleAppLaunched() },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF22C55E),
+                                checkedColor = EmeraldAction,
                                 uncheckedColor = Color(0xFF64748B),
                                 checkmarkColor = Color.White
                             ),
@@ -741,18 +889,19 @@ fun DashboardScreenContent(
                                 successfulUnlockChecked = true
                                 unsuccessfulUnlockChecked = true
                                 appLaunchedChecked = true
+                                onResetFilters()
                             },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1E293B)
+                                containerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0)
                             )
                         ) {
                             Text(
                                 text = "Reset",
-                                color = Color.White,
+                                color = filterTitleColor,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -764,7 +913,7 @@ fun DashboardScreenContent(
                                 .height(48.dp),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF22C55E)
+                                containerColor = EmeraldAction
                             )
                         ) {
                             Text(
@@ -774,7 +923,651 @@ fun DashboardScreenContent(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dropdown menu matching the reference "Sort" and "Show" menu layout.
+ */
+@Composable
+fun SortShowDropdownMenu(
+    expanded: Boolean,
+    selectedSortOrder: EventSortOrder,
+    selectedShowFilter: EventShowFilter,
+    onSelectSortOrder: (EventSortOrder) -> Unit,
+    onSelectShowFilter: (EventShowFilter) -> Unit,
+    onOpenAdvancedFilters: (() -> Unit)? = null,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val menuBg = if (isDark) Color(0xFF1E293B) else Color.White
+    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val mutedColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val dividerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    Box(modifier = modifier.wrapContentSize(Alignment.TopEnd)) {
+        MaterialTheme(
+            colorScheme = MaterialTheme.colorScheme.copy(
+                surface = menuBg,
+                surfaceContainer = menuBg,
+                surfaceContainerLow = menuBg,
+                surfaceContainerHigh = menuBg,
+                surfaceContainerHighest = menuBg
+            ),
+            shapes = MaterialTheme.shapes.copy(
+                extraSmall = RoundedCornerShape(16.dp)
+            )
+        ) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = onDismiss,
+                offset = DpOffset(x = 0.dp, y = 4.dp),
+                modifier = Modifier
+                    .width(236.dp)
+                    .background(menuBg)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(menuBg)
+                        .padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Sort",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = mutedColor,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
+                    )
+
+                    EventSortOrder.entries.forEach { order ->
+                        val isSelected = selectedSortOrder == order
+                        val trailingIcon = when (order) {
+                            EventSortOrder.NEWEST_FIRST -> Icons.AutoMirrored.Filled.Sort
+                            EventSortOrder.OLDEST_FIRST -> Icons.AutoMirrored.Filled.List
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onSelectSortOrder(order)
+                                    onDismiss()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier.width(24.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = textColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = order.label,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+                                ),
+                                color = textColor,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Icon(
+                                imageVector = trailingIcon,
+                                contentDescription = null,
+                                tint = mutedColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = dividerColor,
+                        thickness = 1.dp
+                    )
+
+                    Text(
+                        text = "Show",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = mutedColor,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 4.dp)
+                    )
+
+                    EventShowFilter.entries.forEach { filter ->
+                        val isSelected = selectedShowFilter == filter
+                        val (trailingIcon, trailingTint) = when (filter) {
+                            EventShowFilter.ALL_EVENTS -> null to mutedColor
+                            EventShowFilter.FAILED_ATTEMPTS -> Icons.Default.PersonOff to DestructiveRed
+                            EventShowFilter.UNLOCKS -> Icons.Default.Fingerprint to EmeraldAction
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onSelectShowFilter(filter)
+                                    onDismiss()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier.width(24.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = textColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = filter.label,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+                                ),
+                                color = textColor,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            if (trailingIcon != null) {
+                                Icon(
+                                    imageVector = trailingIcon,
+                                    contentDescription = null,
+                                    tint = trailingTint,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (onOpenAdvancedFilters != null) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = dividerColor,
+                            thickness = 1.dp
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onOpenAdvancedFilters()
+                                    onDismiss()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Spacer(modifier = Modifier.width(24.dp))
+                            Text(
+                                text = "More filters...",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = EmeraldAction,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Delete confirmation dialog with centered title/body and split Cancel / Delete actions.
+ */
+@Composable
+fun DeleteReportDialog(
+    photoCount: Int = 2,
+    onConfirmDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    val dialogBg = if (isDark) Color(0xFF1E293B) else Color.White
+    val titleColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val bodyColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val dividerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = dialogBg,
+            shadowElevation = 4.dp,
+            tonalElevation = 0.dp
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Delete this report?",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 19.sp
+                        ),
+                        color = titleColor,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = "The $photoCount photos will also be removed from this phone and Google Drive. This can't be undone.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        ),
+                        color = bodyColor,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                HorizontalDivider(color = dividerColor, thickness = 1.dp)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable(onClick = onDismiss)
+                            .padding(vertical = 15.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                            ),
+                            color = EmeraldAction
+                        )
+                    }
+
+                    VerticalDivider(
+                        modifier = Modifier.fillMaxHeight(),
+                        color = dividerColor,
+                        thickness = 1.dp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable(onClick = onConfirmDelete)
+                            .padding(vertical = 15.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Delete",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                            ),
+                            color = DestructiveRed
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Edge-to-edge bottom sheet for selecting wrong attempts before capture, matching the reference UI.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WrongAttemptsBottomSheet(
+    currentValue: String,
+    onSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    val sheetBg = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+    val cardBg = if (isDark) Color(0xFF1E293B) else Color.White
+    val titleColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val mutedColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val dividerColor = if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var draftValue by remember(currentValue) { mutableStateOf(currentValue) }
+
+    val options = listOf(
+        "1" to ("1 attempt" to " · Recommended"),
+        "2" to ("2 attempts" to null),
+        "3" to ("3 attempts" to null),
+        "5" to ("5 attempts" to null)
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = sheetBg,
+        contentColor = titleColor,
+        tonalElevation = 0.dp,
+        scrimColor = Color.Black.copy(alpha = 0.45f),
+        windowInsets = WindowInsets(0, 0, 0, 0),
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 6.dp)
+                    .width(38.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(mutedColor.copy(alpha = 0.45f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(sheetBg)
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 22.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp
+                    ),
+                    color = EmeraldAction,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onDismiss)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                )
+
+                Text(
+                    text = "Wrong attempts",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    ),
+                    color = titleColor
+                )
+
+                Text(
+                    text = "Done",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    ),
+                    color = EmeraldAction,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            onSelected(draftValue)
+                            onDismiss()
+                        }
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                )
+            }
+
+            Text(
+                text = "Take a photo after this many wrong PIN, pattern or password entries.",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                ),
+                color = mutedColor
+            )
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = cardBg,
+                border = BorderStroke(1.dp, dividerColor),
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    options.forEachIndexed { index, (value, labelPair) ->
+                        val isSelected = draftValue == value
+                        val (primaryPart, secondaryPart) = labelPair
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { draftValue = value }
+                                .padding(horizontal = 18.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = buildAnnotatedString {
+                                    withStyle(
+                                        SpanStyle(
+                                            color = titleColor,
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 15.sp
+                                        )
+                                    ) {
+                                        append(primaryPart)
+                                    }
+                                    if (secondaryPart != null) {
+                                        withStyle(
+                                            SpanStyle(
+                                                color = mutedColor,
+                                                fontWeight = FontWeight.Normal,
+                                                fontSize = 15.sp
+                                            )
+                                        ) {
+                                            append(secondaryPart)
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = EmeraldAction,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        if (index < options.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 18.dp),
+                                color = dividerColor,
+                                thickness = 1.dp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Camera permission explanation dialog matching the reference UI.
+ */
+@Composable
+fun CameraPermissionDialog(
+    onAllowCamera: () -> Unit,
+    onNotNow: () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    val dialogBg = if (isDark) Color(0xFF1E293B) else Color.White
+    val titleColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val bodyColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val bulletTextColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+
+    val bullets = listOf(
+        "No shutter sound or flash",
+        "Never used in the background otherwise"
+    )
+
+    Dialog(onDismissRequest = onNotNow) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = dialogBg,
+            shadowElevation = 4.dp,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 26.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF007AFF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text(
+                    text = "Allow camera access",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 21.sp
+                    ),
+                    color = titleColor,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "WTMP uses the front camera only when someone enters a wrong unlock. Photos never leave your phone unless backup is on.",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    ),
+                    color = bodyColor,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    bullets.forEach { bullet ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = EmeraldAction,
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .size(18.dp)
+                            )
+                            Text(
+                                text = bullet,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp
+                                ),
+                                color = bulletTextColor,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onAllowCamera,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = EmeraldAction,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "Allow Camera",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(
+                    onClick = onNotNow,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Not now",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 15.sp
+                        ),
+                        color = bodyColor
+                    )
                 }
             }
         }
@@ -787,6 +1580,7 @@ fun ReferenceProtectionCard(
     isActive: Boolean,
     failedAttempts: Int,
     unlocksCount: Int,
+    isCloudBackupEnabled: Boolean,
     onToggle: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
@@ -871,11 +1665,13 @@ fun ReferenceProtectionCard(
                     label = "Unlocks",
                     valueColor = primaryText
                 )
-                StatCol(
-                    value = "10:44",
-                    label = "Last backup",
-                    valueColor = primaryText
-                )
+                if (isCloudBackupEnabled) {
+                    StatCol(
+                        value = "10:44",
+                        label = "Last backup",
+                        valueColor = primaryText
+                    )
+                }
             }
         }
     }
@@ -1116,22 +1912,22 @@ fun DetectionValueRow(
                 fontSize = 15.sp
             ),
             color = if (isDark) Color.White else Color(0xFF0F172A),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                color = Color(0xFF64748B)
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFFCBD5E1),
-                modifier = Modifier.size(18.dp)
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                color = Color(0xFF64748B),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 130.dp)
             )
         }
     }
@@ -1155,7 +1951,7 @@ fun AiSecurityDialogContent(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 620.dp) // Constrained max height to prevent overflow
+            .heightIn(max = 620.dp)
             .padding(16.dp),
         shape = RoundedCornerShape(24.dp),
         color = dialogBg,
@@ -1164,7 +1960,7 @@ fun AiSecurityDialogContent(
         Column(
             modifier = Modifier
                 .padding(20.dp)
-                .verticalScroll(scrollState), // Makes the entire content scrollable smoothly
+                .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -1405,6 +2201,129 @@ fun AiSecurityDialog(
     }
 }
 
+@Composable
+fun EmailAlertIntervalDialog(
+    currentInterval: String,
+    onSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    val dialogBg = if (isDark) Color(0xFF1E293B) else Color.White
+    val groupCardBg = if (isDark) Color(0xFF162032) else Color(0xFFF8FAFC)
+    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val mutedColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val dividerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    val options = listOf("Instant", "Hourly Digest", "Daily Summary", "Off")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = dialogBg,
+            shadowElevation = 6.dp,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 22.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Email Alert Frequency",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 19.sp
+                    ),
+                    color = textColor
+                )
+
+                Text(
+                    text = "Choose when intruder email notifications are dispatched.",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    ),
+                    color = mutedColor
+                )
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = groupCardBg,
+                    border = BorderStroke(1.dp, dividerColor),
+                    shadowElevation = 0.dp,
+                    tonalElevation = 0.dp
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        options.forEachIndexed { index, option ->
+                            val isSelected = currentInterval == option
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onSelected(option)
+                                        onDismiss()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 15.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = option,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = 15.sp,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                    ),
+                                    color = textColor,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = EmeraldAction,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
+                            }
+
+                            if (index < options.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    color = dividerColor,
+                                    thickness = 1.dp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            ),
+                            color = EmeraldAction
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, name = "Light Mode")
 @Preview(showBackground = true, name = "Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
@@ -1429,6 +2348,7 @@ fun DashboardScreenPreview() {
             onReportTypeToggled = {},
             onResetFilters = {},
             onGenerateCustomReport = {},
+            onAlertEmailIntervalSelected = {},
             onNavigateToEventDetails = {},
             onNavigateToSettings = {},
             onNavigateToHistory = {},
@@ -1460,224 +2380,41 @@ fun AiSecurityDialogPreview() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, name = "Delete Confirmation - Light Mode")
+@Preview(showBackground = true, name = "Delete Confirmation - Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-fun FilterBottomSheet(
-    currentInterval: TimeInterval,
-    selectedTypes: Set<ReportType>,
-    onIntervalSelected: (TimeInterval) -> Unit,
-    onTypeToggled: (ReportType) -> Unit,
-    onResetFilters: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val isDark = isSystemInDarkTheme()
-    val sheetBg = if (isDark) Color(0xFF0D1527) else Color.White
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val mutedColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = sheetBg,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(mutedColor.copy(alpha = 0.4f))
-            )
-        }
-    ) {
-        Column(
+fun DeleteReportDialogPreview() {
+    WTMPTheme {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f)),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Filter Reports",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
-                ),
-                color = textColor
+            DeleteReportDialog(
+                photoCount = 2,
+                onConfirmDelete = {},
+                onDismiss = {}
             )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = "Filter by Date / Time",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp
-                ),
-                color = mutedColor
-            )
-
-            val intervals = listOf(
-                TimeInterval.LAST_24_HOURS to "Last 24 Hours",
-                TimeInterval.PAST_WEEK to "Past Week",
-                TimeInterval.PAST_MONTH to "Past Month",
-                TimeInterval.TODAY to "Today",
-                TimeInterval.ALL to "All"
-            )
-
-            intervals.forEach { (interval, label) ->
-                val isSelected = currentInterval == interval
-                val rowBg = if (isSelected) {
-                    if (isDark) Color(0xFF132B29) else Color(0xFFD1FAE5).copy(alpha = 0.5f)
-                } else {
-                    Color.Transparent
-                }
-                val borderColor = if (isSelected) SwitchActiveGreen else Color.Transparent
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(rowBg)
-                        .border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                        .clickable { onIntervalSelected(interval) }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    RadioButton(
-                        selected = isSelected,
-                        onClick = { onIntervalSelected(interval) },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = SwitchActiveGreen,
-                            unselectedColor = mutedColor
-                        )
-                    )
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 15.sp
-                        ),
-                        color = textColor
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Filter by Event Type",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp
-                ),
-                color = mutedColor
-            )
-
-            val eventTypes = listOf(
-                ReportType.SUCCESSFUL_UNLOCK to "Successful Unlock",
-                ReportType.UNSUCCESSFUL_UNLOCK to "Unsuccessful Unlock",
-                ReportType.APP_LAUNCHED to "App Launched"
-            )
-
-            eventTypes.forEach { (type, label) ->
-                val isChecked = selectedTypes.contains(type)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onTypeToggled(type) }
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        ),
-                        color = textColor
-                    )
-
-                    Checkbox(
-                        checked = isChecked,
-                        onCheckedChange = { onTypeToggled(type) },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = SwitchActiveGreen,
-                            uncheckedColor = mutedColor,
-                            checkmarkColor = Color.White
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onResetFilters,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, if (isDark) Color(0xFF23324A) else Color(0xFFCBD5E1)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = textColor,
-                        containerColor = if (isDark) Color(0xFF162032) else Color.Transparent
-                    )
-                ) {
-                    Text(
-                        text = "Reset",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    )
-                }
-
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SwitchActiveGreen
-                    )
-                ) {
-                    Text(
-                        text = "Apply Filter",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        ),
-                        color = Color.White
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
-@Preview(showBackground = true, name = "Filter Sheet - Light Mode")
-@Preview(showBackground = true, name = "Filter Sheet - Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(showBackground = true, name = "Camera Permission - Light Mode")
+@Preview(showBackground = true, name = "Camera Permission - Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-fun FilterBottomSheetPreview() {
+fun CameraPermissionDialogPreview() {
     WTMPTheme {
-        FilterBottomSheet(
-            currentInterval = TimeInterval.ALL,
-            selectedTypes = setOf(ReportType.SUCCESSFUL_UNLOCK, ReportType.UNSUCCESSFUL_UNLOCK),
-            onIntervalSelected = {},
-            onTypeToggled = {},
-            onResetFilters = {},
-            onDismiss = {}
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f)),
+            contentAlignment = Alignment.Center
+        ) {
+            CameraPermissionDialog(
+                onAllowCamera = {},
+                onNotNow = {}
+            )
+        }
     }
 }
