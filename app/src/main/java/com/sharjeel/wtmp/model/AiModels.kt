@@ -11,11 +11,12 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class AiEventAnalysis(
-    val explanation: String,
-    val riskLevel: String,
-    val category: String, // Normal, Unusual, Suspicious, High-Risk
-    val recommendation: String,
-    val intruderDescription: String? = null // For visual description
+    val explanation: String = "",
+    val riskLevel: String = "Low",
+    val category: String = "Normal", // Normal, Unusual, Suspicious, High-Risk
+    val recommendation: String = "",
+    val intruderDescription: String? = null, // Objective visual description of subject/scene
+    val isLiveVisionResult: Boolean = true
 )
 
 // =================================================================
@@ -27,9 +28,9 @@ data class AiEventAnalysis(
  */
 @Serializable
 data class AiSecurityReport(
-    val reportTitle: String,
-    val summary: String,
-    val securityScore: Int,
+    val reportTitle: String = "Security Audit",
+    val summary: String = "",
+    val securityScore: Int = 80,
     val detailedInsights: List<String> = emptyList(),
     val recommendations: List<String> = emptyList()
 )
