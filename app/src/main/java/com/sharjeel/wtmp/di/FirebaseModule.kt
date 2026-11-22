@@ -47,7 +47,7 @@ object FirebaseModule {
         return try {
             if (FirebaseApp.getApps(context).isNotEmpty()) {
                 Firebase.ai(backend = GenerativeBackend.googleAI())
-                    .generativeModel("gemini-3.5-flash")
+                    .generativeModel("gemini-3.8-flash")
             } else {
                 null
             }
