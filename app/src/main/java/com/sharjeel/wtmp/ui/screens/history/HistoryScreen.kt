@@ -49,6 +49,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -106,6 +107,10 @@ fun HistoryScreen(
     onNavigateToStats: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.markActivityAsVisited()
+    }
 
     HistoryScreenContent(
         uiState = uiState,
@@ -205,6 +210,7 @@ fun HistoryScreenContent(
         bottomBar = {
             DockedBottomNavBar(
                 currentRoute = "history",
+                activityBadgeCount = uiState.unreadActivityCount,
                 onRouteSelected = { route ->
                     when (route) {
                         "dashboard" -> onBackClick()
