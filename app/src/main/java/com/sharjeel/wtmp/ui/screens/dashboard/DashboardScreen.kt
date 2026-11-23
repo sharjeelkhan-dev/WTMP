@@ -179,11 +179,24 @@ val DockItems = listOf(
 fun DockedBottomNavBar(
     currentRoute: String,
     onRouteSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    activityBadgeCount: Int = 0
 ) {
     val isDark = isSystemInDarkTheme()
     val navBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
     val dividerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    val dockItems = listOf(
+        NavDockItem("dashboard", "Home", NavigationIcon.Drawable(R.drawable.home_icon_silhouette_svgrepo_com)),
+        NavDockItem(
+            route = "history",
+            title = "Activity",
+            icon = NavigationIcon.Vector(Icons.AutoMirrored.Filled.List),
+            badgeCount = if (activityBadgeCount > 0) activityBadgeCount else null
+        ),
+        NavDockItem("stats", "Photos", NavigationIcon.Vector(Icons.Default.Collections)),
+        NavDockItem("settings", "Settings", NavigationIcon.Drawable(R.drawable.setting_icon))
+    )
 
     Column(
         modifier = modifier
@@ -199,7 +212,7 @@ fun DockedBottomNavBar(
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DockItems.forEach { item ->
+            dockItems.forEach { item ->
                 val isSelected = currentRoute.startsWith(item.route)
                 val itemTint = if (isSelected) EmeraldPrimary else Color(0xFF94A3B8)
 
@@ -346,6 +359,7 @@ fun DashboardScreenContent(
         bottomBar = {
             DockedBottomNavBar(
                 currentRoute = "dashboard",
+                activityBadgeCount = uiState.unreadActivityCount,
                 onRouteSelected = { route ->
                     when (route) {
                         "history" -> onNavigateToHistory()
