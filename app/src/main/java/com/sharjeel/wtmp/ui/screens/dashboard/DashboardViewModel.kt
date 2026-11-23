@@ -32,9 +32,6 @@ import javax.inject.Inject
 // 1. DATA MODELS & ENUMS FOR UI FILTERING
 // =================================================================
 
-/**
- * Filter options for filtering security events by time periods.
- */
 enum class TimeInterval {
     LAST_24_HOURS,
     PAST_WEEK,
@@ -43,23 +40,17 @@ enum class TimeInterval {
     ALL
 }
 
-/**
- * Filter options for categorizing event types on the UI.
- */
 enum class ReportType {
     SUCCESSFUL_UNLOCK,
     UNSUCCESSFUL_UNLOCK,
     APP_LAUNCHED
 }
 
-/**
- * Represents the complete UI state for DashboardScreen.
- * Immutable StateFlow object observed directly by Jetpack Compose.
- */
 data class DashboardUiState(
     val isProtectionActive: Boolean = false,
     val events: List<SecurityEvent> = emptyList(),
     val todayEventsCount: Int = 0,
+    val unreadActivityCount: Int = 0,
     val timeInterval: TimeInterval = TimeInterval.ALL,
     val reportTypes: Set<ReportType> = ReportType.entries.toSet(),
     val isLoading: Boolean = false,
@@ -74,7 +65,8 @@ data class AiDashboardExtraState(
     val cloudBackup: Boolean,
     val emailInterval: String,
     val report: AiSecurityReport?,
-    val aiLoading: Boolean
+    val aiLoading: Boolean,
+    val lastVisitedTimestamp: Long
 )
 
 // =================================================================
@@ -90,29 +82,17 @@ class DashboardViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    // Internal StateFlows for mutable state operations
     private val _customReport = MutableStateFlow<AiSecurityReport?>(null)
     private val _isAiLoading = MutableStateFlow(false)
     private val _timeInterval = MutableStateFlow(TimeInterval.ALL)
     private val _reportTypes = MutableStateFlow(ReportType.entries.toSet())
 
-    /**
-     * Formats current timestamp into uppercase display string (e.g., "SATURDAY, 18 JULY 2026").
-     */
     private fun getFormattedCurrentDate(): String {
         return SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault())
             .format(Date())
             .uppercase(Locale.getDefault())
     }
 
-    // =================================================================
-    // 3. REACTIVE UI STATE COMBINER
-    // =================================================================
-
-    /**
-     * Combines background flows (Repository streams + Local Filter states)
-     * into a single unified DashboardUiState for reactive UI updates.
-     */
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.isProtectionActive,
         repository.getAllEvents(),
@@ -121,10 +101,11 @@ class DashboardViewModel @Inject constructor(
         combine(
             userPreferencesRepository.isCloudBackupEnabled,
             userPreferencesRepository.alertEmailInterval,
+            userPreferencesRepository.lastVisitedActivityTimestamp,
             _customReport,
             _isAiLoading
-        ) { cloudBackup, emailInterval, report, loading ->
-            AiDashboardExtraState(cloudBackup, emailInterval, report, loading)
+        ) { cloudBackup, emailInterval, lastVisited, report, loading ->
+            AiDashboardExtraState(cloudBackup, emailInterval, report, loading, lastVisited)
         }
     ) { active, events, interval, types, extra ->
 
@@ -132,11 +113,15 @@ class DashboardViewModel @Inject constructor(
         val emailInterval = extra.emailInterval
         val report = extra.report
         val aiLoading = extra.aiLoading
+        val lastVisited = extra.lastVisitedTimestamp
 
-        // Count events triggered on the current calendar day
         val todayCount = events.count { isToday(it.timestamp) }
 
-        // Filter events based on selected TimeInterval and ReportType filters
+        val unreadCount = events.count { event ->
+            (event.type == SecurityEventType.FAILED_UNLOCK || event.type == SecurityEventType.FAILED_ATTEMPT) &&
+                    event.timestamp > lastVisited
+        }
+
         val filteredEvents = events.filter { event ->
             val matchesInterval = when (interval) {
                 TimeInterval.LAST_24_HOURS -> isWithinHours(event.timestamp, 24)
@@ -163,6 +148,7 @@ class DashboardViewModel @Inject constructor(
             isProtectionActive = active,
             events = filteredEvents,
             todayEventsCount = todayCount,
+            unreadActivityCount = unreadCount,
             timeInterval = interval,
             reportTypes = types,
             isLoading = false,
@@ -181,10 +167,6 @@ class DashboardViewModel @Inject constructor(
         )
     )
 
-    // =================================================================
-    // 4. USER INTENT ACTIONS / HANDLERS
-    // =================================================================
-
     fun setAlertEmailInterval(interval: String) {
         viewModelScope.launch {
             userPreferencesRepository.setAlertEmailInterval(interval)
@@ -197,17 +179,10 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Updates time interval filter (e.g., Today, 24h, Week, Month).
-     */
     fun setTimeInterval(interval: TimeInterval) {
         _timeInterval.value = interval
     }
 
-    /**
-     * Toggles an individual event category filter.
-     * Prevents deselecting all filters by ensuring at least one remains active.
-     */
     fun toggleReportType(type: ReportType) {
         _reportTypes.update { current ->
             val mutableSet = current.toMutableSet()
@@ -220,17 +195,11 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Resets all filters back to default (ALL intervals & ALL report types enabled).
-     */
     fun resetFilters() {
         _timeInterval.value = TimeInterval.ALL
         _reportTypes.value = ReportType.entries.toSet()
     }
 
-    /**
-     * Toggles background monitoring protection state and manages Foreground Service lifecycle.
-     */
     fun toggleProtection() {
         viewModelScope.launch {
             val newStatus = !uiState.value.isProtectionActive
@@ -245,10 +214,6 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Requests custom AI security audit via Generative AI Service based on logged security events.
-     * Guaranteed to produce results via Generative AI or intelligent local security analysis fallback.
-     */
     fun generateCustomAiReport(userPrompt: String) {
         viewModelScope.launch {
             _isAiLoading.value = true
@@ -317,13 +282,6 @@ class DashboardViewModel @Inject constructor(
         )
     }
 
-    // =================================================================
-    // 5. PRIVATE HELPER / DATE COMPARISON FUNCTIONS
-    // =================================================================
-
-    /**
-     * Checks if given epoch timestamp falls within today's calendar day.
-     */
     private fun isToday(timestamp: Long): Boolean {
         val calendar = Calendar.getInstance()
         val todayDay = calendar.get(Calendar.DAY_OF_YEAR)
@@ -333,18 +291,12 @@ class DashboardViewModel @Inject constructor(
         return calendar.get(Calendar.DAY_OF_YEAR) == todayDay && calendar.get(Calendar.YEAR) == todayYear
     }
 
-    /**
-     * Checks if given timestamp occurred within last N hours.
-     */
     private fun isWithinHours(timestamp: Long, hours: Int): Boolean {
         val now = System.currentTimeMillis()
         val diff = now - timestamp
         return diff >= 0 && diff <= hours.toLong() * 60 * 60 * 1000
     }
 
-    /**
-     * Checks if given timestamp occurred within last N days.
-     */
     private fun isWithinDays(timestamp: Long, days: Int): Boolean {
         val now = System.currentTimeMillis()
         val diff = now - timestamp
