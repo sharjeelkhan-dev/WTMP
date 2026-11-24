@@ -3,6 +3,8 @@ package com.sharjeel.wtmp.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sharjeel.wtmp.domain.repository.SecurityRepository
+import com.sharjeel.wtmp.model.SecurityEventType
+import com.sharjeel.wtmp.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,8 @@ data class SettingsUiState(
     val isAlarmEnabled: Boolean = true,
     val isVibrationEnabled: Boolean = true,
     val isAntiTheftEnabled: Boolean = false,
+    val unreadActivityCount: Int = 0,
+    val alertEmailInterval: String = "Instant",
     val isLoading: Boolean = false
 )
 
@@ -39,7 +43,8 @@ data class SettingsUiState(
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: SecurityRepository
+    private val repository: SecurityRepository,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     // =================================================================
@@ -47,22 +52,37 @@ class SettingsViewModel @Inject constructor(
     // =================================================================
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        repository.themeMode,
-        repository.isBiometricEnabled,
-        repository.detectionSensitivity,
-        repository.autoDeletePeriod,
-        repository.isAlarmEnabled,
-        repository.isVibrationEnabled,
-        repository.isAntiTheftEnabled
-    ) { flows: Array<Any?> ->
+        combine(
+            repository.themeMode,
+            repository.isBiometricEnabled,
+            repository.detectionSensitivity,
+            repository.autoDeletePeriod,
+            repository.isAlarmEnabled,
+            repository.isVibrationEnabled,
+            repository.isAntiTheftEnabled
+        ) { flows: Array<Any?> -> flows },
+        combine(
+            repository.getAllEvents(),
+            userPreferencesRepository.lastVisitedActivityTimestamp,
+            userPreferencesRepository.alertEmailInterval
+        ) { events, lastVisited, emailInterval ->
+            val unread = events.count {
+                (it.type == SecurityEventType.FAILED_UNLOCK || it.type == SecurityEventType.FAILED_ATTEMPT) &&
+                        it.timestamp > lastVisited
+            }
+            Pair(unread, emailInterval)
+        }
+    ) { settingsArray, extra ->
         SettingsUiState(
-            themeMode = flows[0] as String,
-            isBiometricEnabled = flows[1] as Boolean,
-            detectionSensitivity = flows[2] as Float,
-            autoDeletePeriod = flows[3] as Int,
-            isAlarmEnabled = flows[4] as Boolean,
-            isVibrationEnabled = flows[5] as Boolean,
-            isAntiTheftEnabled = flows[6] as Boolean,
+            themeMode = settingsArray[0] as String,
+            isBiometricEnabled = settingsArray[1] as Boolean,
+            detectionSensitivity = settingsArray[2] as Float,
+            autoDeletePeriod = settingsArray[3] as Int,
+            isAlarmEnabled = settingsArray[4] as Boolean,
+            isVibrationEnabled = settingsArray[5] as Boolean,
+            isAntiTheftEnabled = settingsArray[6] as Boolean,
+            unreadActivityCount = extra.first,
+            alertEmailInterval = extra.second,
             isLoading = false
         )
     }.stateIn(
