@@ -1,16 +1,12 @@
 package com.sharjeel.wtmp.ui.screens.settings
 
-import android.app.admin.DevicePolicyManager
-import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,32 +24,35 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -66,18 +65,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sharjeel.wtmp.R
+import com.sharjeel.wtmp.ui.components.BentoCard
+import com.sharjeel.wtmp.ui.screens.dashboard.DockedBottomNavBar
+import com.sharjeel.wtmp.ui.theme.WTMPTheme
+
+private val EmeraldPrimary = Color(0xFF059669)
+private val SwitchActiveGreen = Color(0xFF10B981)
 
 // =================================================================
 // 1. STATEFUL CONTAINER SCREEN
@@ -86,57 +89,19 @@ import com.sharjeel.wtmp.R
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onNavigateToHistory: () -> Unit = {},
+    onNavigateToStats: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     SettingsContent(
         uiState = uiState,
         onNavigateBack = onNavigateBack,
-        onThemeChange = viewModel::updateTheme,
+        onNavigateToHistory = onNavigateToHistory,
+        onNavigateToStats = onNavigateToStats,
         onBiometricToggle = viewModel::updateBiometric,
-        onSensitivityChange = viewModel::updateSensitivity,
-        onAutoDeleteChange = viewModel::updateAutoDeletePeriod,
-        onAlarmToggle = viewModel::updateAlarm,
-        onVibrationToggle = viewModel::updateVibration,
-        onAntiTheftToggle = { enabled ->
-            if (enabled) {
-                Toast.makeText(
-                    context,
-                    "Please enable WTMP Anti-Theft in Accessibility Settings",
-                    Toast.LENGTH_LONG
-                ).show()
-                val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                context.startActivity(intent)
-            }
-            viewModel.updateAntiTheft(enabled)
-        },
-        onClearData = viewModel::clearData,
-        onUninstallApp = {
-            val packageName = context.packageName
-            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
-            val isAdminActive = dpm?.activeAdmins?.any { it.packageName == packageName } == true
-
-            if (isAdminActive) {
-                Toast.makeText(
-                    context,
-                    "Please disable Device Admin permission first to uninstall.",
-                    Toast.LENGTH_LONG
-                ).show()
-                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = "package:$packageName".toUri()
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
-            } else {
-                val uninstallIntent = Intent(Intent.ACTION_DELETE).apply {
-                    data = "package:$packageName".toUri()
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(uninstallIntent)
-            }
-        }
+        onAlarmToggle = viewModel::updateAlarm
     )
 }
 
@@ -149,652 +114,706 @@ fun SettingsScreen(
 fun SettingsContent(
     uiState: SettingsUiState = SettingsUiState(),
     onNavigateBack: () -> Unit = {},
-    onThemeChange: (String) -> Unit = {},
+    onNavigateToHistory: () -> Unit = {},
+    onNavigateToStats: () -> Unit = {},
     onBiometricToggle: (Boolean) -> Unit = {},
-    onSensitivityChange: (Float) -> Unit = {},
-    onAutoDeleteChange: (Int) -> Unit = {},
-    onAlarmToggle: (Boolean) -> Unit = {},
-    onVibrationToggle: (Boolean) -> Unit = {},
-    onAntiTheftToggle: (Boolean) -> Unit = {},
-    onClearData: () -> Unit = {},
-    onUninstallApp: () -> Unit = {}
+    onAlarmToggle: (Boolean) -> Unit = {}
 ) {
-    val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
+    val isDark = isSystemInDarkTheme()
+    val screenBg = if (isDark) Color(0xFF0F172A) else Color(0xFFF3F4F6)
+    val cardBg = if (isDark) Color(0xFF1E293B) else Color.White
+    val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    var showThemeDialog by remember { mutableStateOf(false) }
-    var showNotificationsDialog by remember { mutableStateOf(false) }
-    var showPrivacyDialog by remember { mutableStateOf(false) }
-    var showClearDataDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Toggle states for Settings controls
+    var capturePhotoToggle by remember { mutableStateOf(true) }
+    var captureOnUnlockToggle by remember { mutableStateOf(false) }
+    var notificationsToggle by remember { mutableStateOf(true) }
+    var alarmSoundToggle by remember { mutableStateOf(uiState.isAlarmEnabled) }
+    var includeLocationToggle by remember { mutableStateOf(true) }
+    var appLockToggle by remember { mutableStateOf(uiState.isBiometricEnabled) }
+    var hideAppIconToggle by remember { mutableStateOf(false) }
+    var fakeCrashToggle by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                modifier = Modifier.statusBarsPadding(),
-                title = {
-                    Text(
-                        text = "Settings",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(horizontal = 4.dp),
+                title = {},
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                    containerColor = screenBg
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = screenBg,
+        bottomBar = {
+            DockedBottomNavBar(
+                currentRoute = "settings",
+                activityBadgeCount = uiState.unreadActivityCount,
+                onRouteSelected = { route ->
+                    when (route) {
+                        "dashboard" -> onNavigateBack()
+                        "history" -> onNavigateToHistory()
+                        "stats" -> onNavigateToStats()
+                    }
+                }
+            )
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 8.dp,
-                bottom = navBarPadding.calculateBottomPadding() + 16.dp
-            ),
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 100.dp + navBarPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 1. Settings Header Title & Search Bar
             item {
-                SettingsSection("General") {
-                    SettingsItem(
-                        painter = painterResource(id = R.drawable.bell_icon),
-                        title = "Notifications",
-                        showArrow = true,
-                        onClick = { showNotificationsDialog = true }
-                    )
-                    SettingsDivider()
-                    SettingsItem(
-                        painter = painterResource(id = R.drawable.paint_palette_icon),
-                        title = "Theme",
-                        showArrow = true,
-                        onClick = { showThemeDialog = true }
-                    )
-                }
-            }
-
-            item {
-                SettingsSection("Security") {
-                    SettingsItem(
-                        icon = Icons.Default.Lock,
-                        title = "Protection & Privacy",
-                        showArrow = true,
-                        onClick = { showPrivacyDialog = true }
-                    )
-                    SettingsDivider()
-                    SettingsItemWithSwitch(
-                        icon = Icons.Default.Fingerprint,
-                        title = "Biometric Lock",
-                        checked = uiState.isBiometricEnabled,
-                        onCheckedChange = onBiometricToggle
-                    )
-                }
-            }
-
-            item {
-                SettingsSection("Anti-Theft") {
-                    SettingsItemWithSwitch(
-                        icon = Icons.Default.Lock,
-                        title = "Anti-Power Off",
-                        checked = uiState.isAntiTheftEnabled,
-                        onCheckedChange = onAntiTheftToggle
-                    )
-                    SettingsDivider()
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Intercepts clicks on 'Power off' or 'Restart' and forces biometric authentication, just like on high-end secure devices.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-
-            item {
-                SettingsSection("App") {
-                    val context = LocalContext.current
-                    SettingsItem(
-                        icon = Icons.Default.Cloud,
-                        title = "Cloud Sync",
-                        showArrow = true,
-                        onClick = {
-                            Toast.makeText(context, "Cloud Sync coming soon!", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-            }
-
-            item {
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onUninstallApp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                    ),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
-                ) {
-                    SettingsItem(
-                        painter = painterResource(id = R.drawable.recycle_bin_icon),
-                        title = "Uninstall App",
-                        isDanger = true,
-                        onClick = onUninstallApp
-                    )
-                }
-            }
-        }
-    }
-
-    if (showThemeDialog) {
-        val options = listOf("System", "Light", "Dark")
-        SelectionDialog(
-            title = "Choose Theme",
-            options = options,
-            selectedOption = uiState.themeMode,
-            onOptionSelected = {
-                onThemeChange(it)
-                showThemeDialog = false
-            },
-            onDismiss = { showThemeDialog = false }
-        )
-    }
-
-    if (showNotificationsDialog) {
-        NotificationsDialog(
-            isAlarmEnabled = uiState.isAlarmEnabled,
-            isVibrationEnabled = uiState.isVibrationEnabled,
-            onAlarmToggle = onAlarmToggle,
-            onVibrationToggle = onVibrationToggle,
-            onDismiss = { showNotificationsDialog = false }
-        )
-    }
-
-    if (showPrivacyDialog) {
-        PrivacyDialog(
-            sensitivity = uiState.detectionSensitivity,
-            autoDeletePeriod = uiState.autoDeletePeriod,
-            onSensitivityChange = onSensitivityChange,
-            onAutoDeleteChange = onAutoDeleteChange,
-            onClearHistory = {
-                showPrivacyDialog = false
-                showClearDataDialog = true
-            },
-            onDismiss = { showPrivacyDialog = false }
-        )
-    }
-
-    if (showClearDataDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDataDialog = false },
-            title = { Text("Clear All History?") },
-            text = { Text("This will permanently delete all security events and captured evidence. This action cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onClearData()
-                        showClearDataDialog = false
-                    }
-                ) {
-                    Text("Clear All", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearDataDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-}
-
-// =================================================================
-// 3. DIALOG COMPOSABLES (FIXED)
-// =================================================================
-
-@Composable
-fun NotificationsDialog(
-    isAlarmEnabled: Boolean,
-    isVibrationEnabled: Boolean,
-    onAlarmToggle: (Boolean) -> Unit,
-    onVibrationToggle: (Boolean) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Notifications Settings") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                SettingsItemWithSwitch(
-                    icon = Icons.Default.Notifications,
-                    title = "Alarm Sound",
-                    checked = isAlarmEnabled,
-                    onCheckedChange = onAlarmToggle,
-                    horizontalPadding = 0.dp
-                )
-                SettingsDivider(modifier = Modifier.padding(horizontal = 0.dp))
-                SettingsItemWithSwitch(
-                    icon = Icons.Default.Notifications,
-                    title = "Vibration",
-                    checked = isVibrationEnabled,
-                    onCheckedChange = onVibrationToggle,
-                    horizontalPadding = 0.dp
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
-            }
-        }
-    )
-}
-
-@Composable
-fun PrivacyDialog(
-    sensitivity: Float,
-    autoDeletePeriod: Int,
-    onSensitivityChange: (Float) -> Unit,
-    onAutoDeleteChange: (Int) -> Unit,
-    onClearHistory: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    var showAutoDeleteDialog by remember { mutableStateOf(false) }
-
-    if (showAutoDeleteDialog) {
-        val options = mapOf(
-            7 to "7 Days",
-            30 to "30 Days",
-            90 to "90 Days",
-            0 to "Never"
-        )
-        val selectedLabel = when (autoDeletePeriod) {
-            0 -> "Never"
-            else -> "$autoDeletePeriod Days"
-        }
-        SelectionDialog(
-            title = "Auto-delete Period",
-            options = options.values.toList(),
-            selectedOption = selectedLabel,
-            onOptionSelected = { label ->
-                val days = options.entries.find { it.value == label }?.key ?: 0
-                onAutoDeleteChange(days)
-                showAutoDeleteDialog = false
-            },
-            onDismiss = { showAutoDeleteDialog = false }
-        )
-    } else {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = {
-                Text(
-                    text = "Protection & Privacy",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SettingsItemWithSlider(
-                        icon = Icons.Default.Speed,
-                        title = "Detection Sensitivity",
-                        value = sensitivity,
-                        onValueChange = onSensitivityChange
+                        text = "Settings",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 32.sp,
+                            letterSpacing = (-0.5).sp
+                        ),
+                        color = if (isDark) Color.White else Color(0xFF0F172A)
                     )
 
-                    SettingsDivider(modifier = Modifier.padding(horizontal = 0.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    SettingsItemWithValue(
-                        icon = Icons.Default.Timer,
-                        title = "Auto-delete Period",
-                        value = when (autoDeletePeriod) {
-                            0 -> "Never"
-                            else -> "$autoDeletePeriod Days"
+                    // Search Field
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = {
+                            Text(
+                                "Search",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                                color = Color(0xFF94A3B8)
+                            )
                         },
-                        onClick = { showAutoDeleteDialog = true },
-                        horizontalPadding = 0.dp
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(id = R.drawable.magnifying_glass_icon),
+                                contentDescription = null,
+                                tint =  MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = SwitchActiveGreen,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = cardBg,
+                            unfocusedContainerColor = cardBg
+                        ),
+                        singleLine = true
                     )
-
-                    SettingsDivider(modifier = Modifier.padding(horizontal = 0.dp))
-
-                    SettingsItem(
-                        icon = Icons.Default.DeleteSweep,
-                        title = "Clear All History",
-                        isDanger = true,
-                        onClick = onClearHistory,
-                        horizontalPadding = 0.dp
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("Done")
                 }
             }
-        )
-    }
-}
-
-@Composable
-fun SelectionDialog(
-    title: String,
-    options: List<String>,
-    selectedOption: String,
-    onOptionSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                options.forEach { option ->
+            // 2. User Profile Card
+            item {
+                BentoCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onOptionSelected(option) }
-                            .padding(vertical = 12.dp),
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(
-                            selected = (option == selectedOption),
-                            onClick = { onOptionSelected(option) }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF334155)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Aarav Mehta",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp
+                                        ),
+                                        color = if (isDark) Color.White else Color(0xFF0F172A)
+                                    )
+
+                                    Surface(
+                                        color = EmeraldPrimary.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "PRO",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 10.sp
+                                            ),
+                                            color = EmeraldPrimary
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = "aarav.mehta@gmail.com • Renews...",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = Color(0xFF64748B),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFFCBD5E1),
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = option, style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+
+            // 3. PROTECTION Grouped Bento Card
+            item {
+                SettingsSectionGroup(
+                    title = "PROTECTION",
+                    cardBg = cardBg,
+                    isDark = isDark,
+                    footerText = "Photos are taken silently with no shutter sound or flash."
+                ) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.CameraAlt,
+                        iconBg = Color(0xFF007AFF),
+                        title = "Capture intruder photo",
+                        checked = capturePhotoToggle,
+                        onCheckedChange = { capturePhotoToggle = it }
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsValueRow(
+                        icon = Icons.Default.CameraAlt,
+                        iconBg = Color(0xFF8E8E93),
+                        title = "Camera",
+                        value = "Front >"
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsValueRow(
+                        icon = Icons.Default.Collections,
+                        iconBg = Color(0xFF5856D6),
+                        title = "Photos per attempt",
+                        value = "2 >"
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsValueRow(
+                        icon = Icons.Default.Tag,
+                        iconBg = Color(0xFFFF9500),
+                        title = "Wrong attempts before capture",
+                        value = "1 >"
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsSwitchRow(
+                        icon = Icons.Default.LockOpen,
+                        iconBg = EmeraldPrimary,
+                        title = "Capture on successful unlock",
+                        checked = captureOnUnlockToggle,
+                        onCheckedChange = { captureOnUnlockToggle = it }
+                    )
+                }
+            }
+
+            // 4. ALERTS Grouped Bento Card
+            item {
+                SettingsSectionGroup(
+                    title = "ALERTS",
+                    cardBg = cardBg,
+                    isDark = isDark
+                ) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Notifications,
+                        iconBg = Color(0xFFFF3B30),
+                        title = "Notifications",
+                        checked = notificationsToggle,
+                        onCheckedChange = { notificationsToggle = it }
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsSwitchRow(
+                        icon = Icons.AutoMirrored.Filled.VolumeUp,
+                        iconBg = Color(0xFFFF2D55),
+                        title = "Alarm sound",
+                        checked = alarmSoundToggle,
+                        onCheckedChange = {
+                            alarmSoundToggle = it
+                            onAlarmToggle(it)
+                        }
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsValueRow(
+                        icon = Icons.Default.Email,
+                        iconBg = Color(0xFF007AFF),
+                        title = "Email alert",
+                        value = "${uiState.alertEmailInterval} >"
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsSwitchRow(
+                        icon = Icons.Default.NearMe,
+                        iconBg = Color(0xFF5AC8FA),
+                        title = "Include location",
+                        checked = includeLocationToggle,
+                        onCheckedChange = { includeLocationToggle = it }
+                    )
+                }
+            }
+
+            // 5. BACKUP & STORAGE Grouped Bento Card
+            item {
+                SettingsSectionGroup(
+                    title = "BACKUP & STORAGE",
+                    cardBg = cardBg,
+                    isDark = isDark
+                ) {
+                    SettingsValueRow(
+                        icon = Icons.Default.CloudDone,
+                        iconBg = EmeraldPrimary,
+                        title = "Google Drive",
+                        value = "Connected >"
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsValueRow(
+                        icon = Icons.Default.History,
+                        iconBg = Color(0xFF8E8E93),
+                        title = "Auto-delete after",
+                        value = "${uiState.autoDeletePeriod} days >"
+                    )
+                    SettingsDivider(isDark = isDark)
+
+                    // Storage Used Row with Progress Bar
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(RoundedCornerShape(9.dp))
+                                        .background(Color(0xFF64748B)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Storage,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                Text(
+                                    text = "Storage used",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                                )
+                            }
+
+                            Text(
+                                text = "46 MB of 500 MB",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                color = Color(0xFF64748B)
+                            )
+                        }
+
+                        LinearProgressIndicator(
+                            progress = { 46f / 500f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(5.dp)
+                                .clip(CircleShape),
+                            color = EmeraldPrimary,
+                            trackColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                        )
+                    }
+                }
+            }
+
+            // 6. PRIVACY & SECURITY Grouped Bento Card
+            item {
+                SettingsSectionGroup(
+                    title = "PRIVACY & SECURITY",
+                    cardBg = cardBg,
+                    isDark = isDark,
+                    footerText = "When hidden, open WTMP by dialing *#9867# from your phone app."
+                ) {
+                    SettingsSwitchRowWithValue(
+                        icon = Icons.Default.Lock,
+                        iconBg = EmeraldPrimary,
+                        title = "App lock",
+                        value = "Face ID",
+                        checked = appLockToggle,
+                        onCheckedChange = {
+                            appLockToggle = it
+                            onBiometricToggle(it)
+                        }
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsSwitchRow(
+                        icon = Icons.Default.VisibilityOff,
+                        iconBg = Color(0xFF1E293B),
+                        title = "Hide app icon",
+                        checked = hideAppIconToggle,
+                        onCheckedChange = { hideAppIconToggle = it }
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Warning,
+                        iconBg = Color(0xFFFF9500),
+                        title = "Fake crash screen",
+                        checked = fakeCrashToggle,
+                        onCheckedChange = { fakeCrashToggle = it }
+                    )
+                }
+            }
+
+            // 7. SUPPORT Grouped Bento Card
+            item {
+                SettingsSectionGroup(
+                    title = "SUPPORT",
+                    cardBg = cardBg,
+                    isDark = isDark
+                ) {
+                    SettingsValueRowWithIcon(
+                        title = "Help centre",
+                        trailingIcon = Icons.Default.OpenInNew
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsValueRow(
+                        title = "Rate WTMP",
+                        value = ">"
+                    )
+                    SettingsDivider(isDark = isDark)
+                    SettingsValueRow(
+                        title = "Privacy policy",
+                        value = ">"
+                    )
+                }
+            }
+
+            // 8. Footer App Version Info
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "WTMP 3.2.1 (418)",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = Color(0xFF94A3B8),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
             }
         }
-    )
+    }
 }
 
 // =================================================================
-// 4. ITEM ROW & SECTION SUB-COMPOSABLES
+// 3. MODULAR SUB-COMPOSABLES
 // =================================================================
 
 @Composable
-fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column {
+fun SettingsSectionGroup(
+    title: String,
+    cardBg: Color,
+    isDark: Boolean,
+    footerText: String? = null,
+    content: @Composable () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp, bottom = 6.dp),
-            fontWeight = FontWeight.Bold
-        )
-        ElevatedCard(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+                fontSize = 12.sp
             ),
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+            color = Color(0xFF64748B),
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+
+        BentoCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp)
         ) {
-            Column(content = content)
+            Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                content()
+            }
+        }
+
+        if (!footerText.isNullOrBlank()) {
+            Text(
+                text = footerText,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                color = Color(0xFF64748B),
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
         }
     }
 }
 
 @Composable
-fun SettingsItemWithSwitch(
+fun SettingsSwitchRow(
     icon: ImageVector,
+    iconBg: Color,
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
+    onCheckedChange: (Boolean) -> Unit
 ) {
-    SettingsItemContent(
-        painter = rememberVectorPainter(icon),
-        title = title,
-        showArrow = false,
-        isDanger = false,
-        onClick = { onCheckedChange(!checked) },
-        horizontalPadding = horizontalPadding
+    val isDark = isSystemInDarkTheme()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp
+            ),
+            color = if (isDark) Color.White else Color(0xFF0F172A),
+            modifier = Modifier.weight(1f)
+        )
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                checkedThumbColor = Color.White,
+                checkedTrackColor = SwitchActiveGreen,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFCBD5E1),
+                uncheckedBorderColor = Color.Transparent
             )
         )
     }
 }
 
 @Composable
-fun SettingsItemWithSlider(
+fun SettingsSwitchRowWithValue(
     icon: ImageVector,
+    iconBg: Color,
     title: String,
-    value: Float,
-    onValueChange: (Float) -> Unit
+    value: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
 ) {
-    Column(
+    val isDark = isSystemInDarkTheme()
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp
+            ),
+            color = if (isDark) Color.White else Color(0xFF0F172A),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+            color = Color(0xFF64748B),
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = SwitchActiveGreen,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0xFFCBD5E1),
+                uncheckedBorderColor = Color.Transparent
+            )
+        )
+    }
+}
+
+@Composable
+fun SettingsValueRow(
+    icon: ImageVector? = null,
+    iconBg: Color? = null,
+    title: String,
+    value: String,
+    onClick: () -> Unit = {}
+) {
+    val isDark = isSystemInDarkTheme()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null && iconBg != null) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(iconBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = when {
-                    value < 0.33f -> "Low"
-                    value < 0.67f -> "Medium"
-                    else -> "High"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Spacer(modifier = Modifier.width(14.dp))
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.padding(horizontal = 4.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
-            )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp
+            ),
+            color = if (isDark) Color.White else Color(0xFF0F172A),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
-    }
-}
-
-@Composable
-fun SettingsItemWithValue(
-    icon: ImageVector,
-    title: String,
-    value: String,
-    onClick: () -> Unit,
-    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
-) {
-    SettingsItemContent(
-        painter = rememberVectorPainter(icon),
-        title = title,
-        showArrow = true,
-        isDanger = false,
-        onClick = onClick,
-        horizontalPadding = horizontalPadding
-    ) {
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 4.dp),
-            maxLines = 1
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+            color = Color(0xFF64748B),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
 @Composable
-fun SettingsItem(
-    icon: ImageVector,
+fun SettingsValueRowWithIcon(
     title: String,
-    showArrow: Boolean = false,
-    isDanger: Boolean = false,
-    onClick: () -> Unit = {},
-    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
+    trailingIcon: ImageVector,
+    onClick: () -> Unit = {}
 ) {
-    SettingsItemContent(
-        painter = rememberVectorPainter(icon),
-        title = title,
-        showArrow = showArrow,
-        isDanger = isDanger,
-        onClick = onClick,
-        horizontalPadding = horizontalPadding
-    )
-}
+    val isDark = isSystemInDarkTheme()
 
-@Composable
-fun SettingsItem(
-    painter: Painter,
-    title: String,
-    showArrow: Boolean = false,
-    isDanger: Boolean = false,
-    onClick: () -> Unit = {},
-    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp
-) {
-    SettingsItemContent(
-        painter = painter,
-        title = title,
-        showArrow = showArrow,
-        isDanger = isDanger,
-        onClick = onClick,
-        horizontalPadding = horizontalPadding
-    )
-}
-
-@Composable
-private fun SettingsItemContent(
-    painter: Painter,
-    title: String,
-    showArrow: Boolean,
-    isDanger: Boolean,
-    onClick: (() -> Unit)?,
-    modifier: Modifier = Modifier,
-    horizontalPadding: androidx.compose.ui.unit.Dp = 16.dp,
-    trailingContent: @Composable (() -> Unit)? = null
-) {
-    val contentColor = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    val iconBgColor = if (isDanger) MaterialTheme.colorScheme.error.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-    val iconTint = if (isDanger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-
-    val clickModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
-
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(clickModifier)
-            .then(modifier),
-        color = Color.Transparent
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(iconBgColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painter,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = iconTint
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            if (trailingContent != null) {
-                trailingContent()
-            }
-
-            if (showArrow) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.outline
-                )
-            }
-        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp
+            ),
+            color = if (isDark) Color.White else Color(0xFF0F172A),
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = trailingIcon,
+            contentDescription = null,
+            tint = Color(0xFF64748B),
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
 @Composable
-fun SettingsDivider(modifier: Modifier = Modifier) {
+fun SettingsDivider(isDark: Boolean) {
     HorizontalDivider(
-        modifier = modifier.padding(horizontal = 16.dp),
-        thickness = 0.8.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        modifier = Modifier.padding(start = 64.dp, end = 16.dp),
+        thickness = 1.dp,
+        color = if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9)
     )
 }
-
-// =================================================================
-// 5. PREVIEW PROVIDERS
-// =================================================================
 
 @Preview(name = "Light Mode", showBackground = true)
 @Preview(name = "Dark Mode", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun SettingsScreenPreview() {
-    com.sharjeel.wtmp.ui.theme.WTMPTheme {
+    WTMPTheme {
         SettingsContent()
     }
 }
