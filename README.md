@@ -14,25 +14,6 @@
 | 🛡️ **Stealth & Protection** | Enhanced security layer featuring App-Lock protection, dynamic notification masking, and PIN protection to prevent unauthorized app termination. |
 | 🎨 **Asset Attribution** | Core system actions, navigation nodes, and modern news channel vector elements curated via [Uxwing](https://uxwing.com/). |
 
-<details>
-<summary><b>✨ View Interface Design (Click to Expand)</b></summary>
-<br/>
-<table width="100%">
- <tr>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/dd3206f3-f169-4f2d-8ed1-0e2dd39ab560" width="100%" alt="Screen 1 - Dashboard / Security Toggle" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/ec86410c-8a95-4cad-8ea3-3db45d89d2d5" width="100%" alt="Screen 2 - Intruder Logs List" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/1675c88a-17ac-4cd8-af91-5a3d569cecca" width="100%" alt="Screen 3 - Intrusion Log Detail Screen" /></td>
- </tr>
- 
-  <tr>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/a820e847-e7dd-4a97-aa9a-b1bd1e89b565" width="100%" alt="Screen 4 - AI Threat Analysis" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/52b18a56-70ba-42ac-b13f-f34078804116" width="100%" alt="Screen 5 - Captured Media Gallery" /></td>
-    <td width="33.3%" align="center"><img src="https://github.com/user-attachments/assets/f4f922a3-4990-473f-a318-665839226def" width="100%" alt="Screen 6 - App Settings & Security" /></td>
- </tr>
- 
-</table>
-</details>
-
 ## 🛠 Setup & Installation
 
 ### 📋 Prerequisites
